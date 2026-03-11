@@ -450,6 +450,7 @@ server <- function(input, output, session) {
     )
 
 
+    if (pt == "taxonomy_bar") {
       tagList(
         tags$div(class = "form-label", "Rango taxonómico"),
         selectInput("tax_rank", NULL, choices = rank_choices),
