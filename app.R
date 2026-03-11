@@ -5,6 +5,8 @@ library(bslib)
 library(SQMtools)
 library(DT)
 
+`%||%` <- function(a, b) if (!is.null(a)) a else b
+
 # ─────────────────────────────────────────────
 #  TEMA CLARO
 # ─────────────────────────────────────────────
@@ -55,7 +57,6 @@ custom_css <- "
 
 body { background: var(--bg); color: var(--text); }
 
-/* Navbar */
 .navbar {
   background: linear-gradient(90deg, #0e4a82 0%, #1a6eb5 100%) !important;
   border-bottom: 3px solid #1a9e6e !important;
@@ -72,7 +73,6 @@ body { background: var(--bg); color: var(--text); }
 .nav-link:hover { color: #ffffff !important; }
 .nav-link.active { color: #ffffff !important; border-bottom: 2px solid #1a9e6e; }
 
-/* Cards */
 .card {
   background: var(--card) !important;
   border: 1px solid var(--border) !important;
@@ -90,7 +90,6 @@ body { background: var(--bg); color: var(--text); }
   padding: 0.6rem 1rem !important;
 }
 
-/* Stat cards */
 .stat-card { border-left: 3px solid var(--blue) !important; }
 .stat-icon { font-size: 1.4rem; color: var(--blue); margin-bottom: 4px; }
 .stat-value {
@@ -108,13 +107,11 @@ body { background: var(--bg); color: var(--text); }
   margin-top: 4px;
 }
 
-/* Sidebar */
 .bslib-sidebar-layout > .sidebar {
   background: var(--panel) !important;
   border-right: 1px solid var(--border) !important;
 }
 
-/* Inputs */
 .form-control, .form-select {
   background: #ffffff !important;
   border: 1px solid var(--border) !important;
@@ -133,7 +130,6 @@ body { background: var(--bg); color: var(--text); }
   margin-bottom: 3px;
 }
 
-/* Buttons */
 .btn-primary {
   background: var(--blue) !important;
   border-color: var(--blue) !important;
@@ -154,7 +150,6 @@ body { background: var(--bg); color: var(--text); }
   color: var(--blue) !important;
 }
 
-/* Project badge */
 .project-badge {
   display: inline-block;
   background: rgba(26,110,181,0.08);
@@ -167,14 +162,20 @@ body { background: var(--bg); color: var(--text); }
   margin: 2px;
 }
 
-/* Section divider */
 .section-divider {
   border: none;
   border-top: 1px solid var(--border);
   margin: 10px 0;
 }
 
-/* DT table */
+.path-info {
+  font-size: 0.72rem;
+  color: var(--muted);
+  word-break: break-all;
+  font-family: 'IBM Plex Mono', monospace;
+  margin-bottom: 6px;
+}
+
 .dataTables_wrapper { color: var(--text) !important; }
 table.dataTable { background: #ffffff !important; color: var(--text) !important; }
 table.dataTable thead th {
@@ -198,7 +199,6 @@ table.dataTable tbody tr:hover { background: #eef5fc !important; }
   border-radius: 4px;
 }
 
-/* shinyFiles button */
 .btn-default {
   background: #ffffff !important;
   border: 1px solid var(--border) !important;
@@ -207,7 +207,6 @@ table.dataTable tbody tr:hover { background: #eef5fc !important; }
 }
 .btn-default:hover { border-color: var(--blue) !important; color: var(--blue) !important; }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -218,7 +217,7 @@ table.dataTable tbody tr:hover { background: #eef5fc !important; }
 #  UI
 # ─────────────────────────────────────────────
 ui <- page_navbar(
-  title = "SQM Viewer",
+  title = "SQMxplore",
   theme = sqm_theme,
 
   navbar_options = navbar_options(theme = "dark", bg = "#0e4a82"),
@@ -236,26 +235,25 @@ ui <- page_navbar(
 
     layout_sidebar(
       sidebar = sidebar(
-        width = 280, open = TRUE,
+        width = 300, open = TRUE,
 
-        tags$div(class = "form-label mt-1", "Directorio de tablas"),
+        # ── Seleccionar directorio del proyecto ──
+        tags$div(class = "form-label mt-1", "Directorio del proyecto"),
         shinyDirButton(
-          "dir_A", "Seleccionar directorio", "Elige el directorio de tablas",
+          "dir_project", "Seleccionar directorio", "Elige el directorio del proyecto",
           multiple = FALSE, class = "btn-default w-100 mb-1"
         ),
-        tags$div(
-          style = "font-size:0.72rem; color:var(--muted); word-break:break-all; margin-bottom:8px;",
-          textOutput("path_A", inline = TRUE)
-        ),
+        tags$div(class = "path-info", textOutput("path_project", inline = TRUE)),
 
-        tags$div(class = "form-label", "Tipo de carga"),
-        radioButtons(
-          "load_type_A", NULL,
-          choices = c("Completo (loadSQM)" = "full", "Ligero (loadSQMlite)" = "lite"),
-          inline  = TRUE
-        ),
+        # ── Info del creator y tablas (se muestra tras seleccionar) ──
+        uiOutput("project_info_ui"),
 
-        actionButton("load_A", "Cargar proyecto", class = "btn-primary w-100 mb-2"),
+        # ── Selector manual de tablas (solo si no se encuentran automáticamente) ──
+        uiOutput("manual_tables_ui"),
+
+        hr(class = "section-divider"),
+
+        actionButton("load_project", "Cargar", class = "btn-primary w-100 mb-2"),
 
         hr(class = "section-divider"),
         uiOutput("project_status_ui")
@@ -294,12 +292,11 @@ ui <- page_navbar(
         tags$div(class = "form-label mt-1", "Tipo de gráfico"),
         selectInput("plot_type", NULL,
           choices = c(
-            "Taxonomía (barras)"  = "taxonomy_bar",
-
-            "Funciones COG"       = "func_cog",
-            "Funciones KEGG"      = "func_kegg",
-            "Funciones PFAM"      = "func_pfam",
-            "Binning"             = "bins"
+            "Taxonomía (barras)" = "taxonomy_bar",
+            "Funciones COG"      = "func_cog",
+            "Funciones KEGG"     = "func_kegg",
+            "Funciones PFAM"     = "func_pfam",
+            "Binning"            = "bins"
           )
         ),
 
@@ -320,10 +317,7 @@ ui <- page_navbar(
             uiOutput("plot_status_badge")
           )
         ),
-        card_body(
-          class = "p-2",
-          plotOutput("sqm_plot", height = "560px")
-        )
+        card_body(class = "p-2", plotOutput("sqm_plot", height = "560px"))
       )
     )
   ),
@@ -341,12 +335,12 @@ ui <- page_navbar(
         tags$div(class = "form-label mt-1", "Tabla"),
         selectInput("table_type", NULL,
           choices = c(
-            "Contigs"             = "contigs",
-            "ORFs"                = "orfs",
-            "Taxonomía — phylum"  = "tax_phylum",
-            "Taxonomía — genus"   = "tax_genus",
-            "Funciones — COG"     = "fun_cog",
-            "Funciones — KEGG"    = "fun_kegg"
+            "Contigs"            = "contigs",
+            "ORFs"               = "orfs",
+            "Taxonomía — phylum" = "tax_phylum",
+            "Taxonomía — genus"  = "tax_genus",
+            "Funciones — COG"    = "fun_cog",
+            "Funciones — KEGG"   = "fun_kegg"
           )
         ),
 
@@ -372,38 +366,156 @@ ui <- page_navbar(
 server <- function(input, output, session) {
 
   roots    <- c(home = normalizePath("~"), root = "/")
-  sqm_A    <- reactiveVal(NULL)
-  status_A <- reactiveVal("idle")
+  sqm_data <- reactiveVal(NULL)
+  status   <- reactiveVal("idle")
 
-  # ── Dir chooser ───────────────────────────
-  shinyDirChoose(input, "dir_A", roots = roots)
+  # Reactive para almacenar la ruta de tablas resuelta
+  tables_path  <- reactiveVal(NULL)
+  # Si necesita selección manual de tablas
+  need_manual  <- reactiveVal(FALSE)
+  # Creator del proyecto
+  creator_name <- reactiveVal(NULL)
 
-  path_A <- reactive({
-    req(input$dir_A)
-    parseDirPath(roots, input$dir_A)
+  # ── Dir choosers ──────────────────────────
+  shinyDirChoose(input, "dir_project",      roots = roots)
+  shinyDirChoose(input, "dir_manual_tables", roots = roots)
+
+  path_project <- reactive({
+    req(input$dir_project)
+    parseDirPath(roots, input$dir_project)
   })
 
-  output$path_A <- renderText({
-    tryCatch(path_A(), error = function(e) "")
+  output$path_project <- renderText({
+    tryCatch(path_project(), error = function(e) "")
+  })
+
+  # ── Leer creator.txt y resolver ruta de tablas ──
+  observeEvent(path_project(), {
+    proj_dir <- path_project()
+    req(nchar(proj_dir) > 0)
+
+    need_manual(FALSE)
+    tables_path(NULL)
+    creator_name(NULL)
+
+    creator_file <- file.path(proj_dir, "creator.txt")
+
+    if (file.exists(creator_file)) {
+      creator <- trimws(readLines(creator_file, n = 1, warn = FALSE))
+      creator_name(creator)
+
+      if (grepl("SqueezeMeta", creator, ignore.case = TRUE)) {
+        # SqueezeMeta: se pasa la ruta del proyecto directamente a loadSQM
+        tables_path(proj_dir)
+      } else {
+        # Otro programa: buscar directorio tables dentro del proyecto
+        tp <- file.path(proj_dir, "tables")
+        if (dir.exists(tp)) {
+          tables_path(tp)
+        } else {
+          need_manual(TRUE)
+        }
+      }
+    } else {
+      # Sin creator.txt: pedir selección manual
+      need_manual(TRUE)
+      showNotification(
+        "No se encontró creator.txt. Selecciona el directorio de tablas manualmente.",
+        type = "warning", duration = 6
+      )
+    }
+  })
+
+  # ── Actualizar ruta manual cuando se selecciona ──
+  observeEvent(input$dir_manual_tables, {
+    tp <- tryCatch(parseDirPath(roots, input$dir_manual_tables), error = function(e) NULL)
+    req(tp)
+    if (nchar(tp) > 0) {
+      tables_path(tp)
+      need_manual(FALSE)
+    }
+  })
+
+  # ── Info del proyecto (creator + ruta tablas) ──
+  output$project_info_ui <- renderUI({
+    req(path_project())
+    proj_dir     <- path_project()
+    creator_file <- file.path(proj_dir, "creator.txt")
+
+    creator_txt <- if (file.exists(creator_file)) {
+      trimws(readLines(creator_file, n = 1, warn = FALSE))
+    } else {
+      "desconocido"
+    }
+
+    tp <- tables_path()
+
+    tagList(
+      tags$div(
+        class = "path-info",
+        tags$span(style = "color:#7a90a8;", "Creado por: "),
+        tags$span(style = "color:#1a6eb5; font-weight:600;", creator_txt)
+      ),
+      if (!is.null(tp)) {
+        tags$div(
+          class = "path-info",
+          tags$span(style = "color:#7a90a8;", "Tablas: "),
+          tp,
+          if (dir.exists(tp)) {
+            tags$span(style = "color:#1a9e6e; margin-left:4px;", "✓")
+          } else {
+            tags$span(style = "color:#c0392b; margin-left:4px;", "✕ no encontrado")
+          }
+        )
+      }
+    )
+  })
+
+  # ── Selector manual de tablas (solo cuando es necesario) ──
+  output$manual_tables_ui <- renderUI({
+    req(need_manual())
+    tagList(
+      hr(class = "section-divider"),
+      tags$div(
+        class = "path-info",
+        style = "color:#c0392b;",
+        "No se encontró el directorio de tablas automáticamente."
+      ),
+      tags$div(class = "form-label", "Selecciona el directorio de tablas"),
+      shinyDirButton(
+        "dir_manual_tables", "Seleccionar tablas", "Elige el directorio de tablas",
+        multiple = FALSE, class = "btn-default w-100 mb-1"
+      )
+    )
   })
 
   # ── Cargar proyecto ───────────────────────
-  observeEvent(input$load_A, {
-    req(path_A())
-    status_A("loading")
+  observeEvent(input$load_project, {
+    tp <- tables_path()
+
+    if (is.null(tp) || !dir.exists(tp)) {
+      showNotification(
+        "Directorio no disponible. Selecciónalo manualmente.",
+        type = "error", duration = 8
+      )
+      return()
+    }
+
+    status("loading")
     tryCatch({
-      proj <- if (input$load_type_A == "full") loadSQM(path_A()) else loadSQMlite(path_A())
-      sqm_A(proj)
-      status_A("ready")
+      is_sqm <- grepl("SqueezeMeta", creator_name() %||% "", ignore.case = TRUE)
+      proj <- if (is_sqm) loadSQM(tp) else loadSQMlite(tp)
+      sqm_data(proj)
+      status("ready")
     }, error = function(e) {
-      status_A("error")
+      status("error")
       showNotification(paste("Error:", e$message), type = "error", duration = 8)
     })
   })
 
   # ── Status ────────────────────────────────
   output$project_status_ui <- renderUI({
-    s   <- status_A()
+    s   <- status()
     col <- switch(s, idle = "#7a90a8", loading = "#3b9ede", ready = "#1a9e6e", error = "#c0392b")
     ico <- switch(s, idle = "○", loading = "◌", ready = "●", error = "✕")
     tags$div(
@@ -416,25 +528,25 @@ server <- function(input, output, session) {
 
   # ── Stats ─────────────────────────────────
   output$stat_contigs <- renderText({
-    req(sqm_A())
-    tryCatch(format(nrow(sqm_A()$contigs$table), big.mark = ","), error = function(e) "—")
+    req(sqm_data())
+    tryCatch(format(nrow(sqm_data()$contigs$table), big.mark = ","), error = function(e) "—")
   })
   output$stat_orfs <- renderText({
-    req(sqm_A())
-    tryCatch(format(nrow(sqm_A()$orfs$table), big.mark = ","), error = function(e) "—")
+    req(sqm_data())
+    tryCatch(format(nrow(sqm_data()$orfs$table), big.mark = ","), error = function(e) "—")
   })
   output$stat_samples <- renderText({
-    req(sqm_A())
-    tryCatch(as.character(length(sqm_A()$samples)), error = function(e) "—")
+    req(sqm_data())
+    tryCatch(as.character(length(sqm_data()$samples)), error = function(e) "—")
   })
   output$stat_taxa <- renderText({
-    req(sqm_A())
-    tryCatch(format(nrow(sqm_A()$taxa$phylum$abund), big.mark = ","), error = function(e) "—")
+    req(sqm_data())
+    tryCatch(format(nrow(sqm_data()$taxa$phylum$abund), big.mark = ","), error = function(e) "—")
   })
 
   output$samples_badges <- renderUI({
-    req(sqm_A())
-    samples <- tryCatch(sqm_A()$samples, error = function(e) NULL)
+    req(sqm_data())
+    samples <- tryCatch(sqm_data()$samples, error = function(e) NULL)
     req(samples)
     tagList(lapply(samples, function(s) tags$span(class = "project-badge", s)))
   })
@@ -448,7 +560,6 @@ server <- function(input, output, session) {
       "Phylum" = "phylum", "Class" = "class", "Order" = "order",
       "Family" = "family", "Genus" = "genus", "Species" = "species"
     )
-
 
     if (pt == "taxonomy_bar") {
       tagList(
@@ -469,35 +580,28 @@ server <- function(input, output, session) {
 
   # ── Generar gráfico ───────────────────────
   plot_reactive <- eventReactive(input$do_plot, {
-    req(sqm_A())
-    proj <- sqm_A()
+    req(sqm_data())
+    proj <- sqm_data()
     pt   <- input$plot_type
 
     if      (pt == "taxonomy_bar") plotTaxonomy(proj,  rank = input$tax_rank, N = input$n_taxa)
-
     else if (pt == "func_cog")     plotFunctions(proj, fun_level = "COG",  N = input$n_funcs)
     else if (pt == "func_kegg")    plotFunctions(proj, fun_level = "KEGG", N = input$n_funcs)
     else if (pt == "func_pfam")    plotFunctions(proj, fun_level = "PFAM", N = input$n_funcs)
     else if (pt == "bins")         plotBins(proj)
   })
 
-  output$sqm_plot <- renderPlot({
-    plot_reactive()
-  }, bg = "#ffffff")
+  output$sqm_plot <- renderPlot({ plot_reactive() }, bg = "#ffffff")
 
   output$plot_status_badge <- renderUI({
-    if (is.null(sqm_A())) {
-      tags$span(
-        class = "badge",
+    if (is.null(sqm_data())) {
+      tags$span(class = "badge",
         style = "background:#eef2f7; color:#7a90a8; font-size:0.72rem; border:1px solid #d0dae6;",
-        "Sin proyecto"
-      )
+        "Sin proyecto")
     } else {
-      tags$span(
-        class = "badge",
+      tags$span(class = "badge",
         style = "background:rgba(26,158,110,0.1); color:#1a9e6e; font-size:0.72rem; border:1px solid rgba(26,158,110,0.3);",
-        "● Listo"
-      )
+        "● Listo")
     }
   })
 
@@ -512,16 +616,16 @@ server <- function(input, output, session) {
 
   # ── Filtro de muestras ────────────────────
   output$table_sample_filter <- renderUI({
-    req(sqm_A())
-    samples <- tryCatch(sqm_A()$samples, error = function(e) NULL)
+    req(sqm_data())
+    samples <- tryCatch(sqm_data()$samples, error = function(e) NULL)
     req(samples)
     checkboxGroupInput("selected_samples", NULL, choices = samples, selected = samples)
   })
 
   # ── Datos de tabla ────────────────────────
   get_table_data <- reactive({
-    req(sqm_A())
-    proj <- sqm_A()
+    req(sqm_data())
+    proj <- sqm_data()
     tt   <- input$table_type
     smp  <- input$selected_samples
 
@@ -550,13 +654,8 @@ server <- function(input, output, session) {
   output$data_table <- renderDT({
     df <- get_table_data()
     req(df)
-    datatable(
-      df,
-      options = list(
-        pageLength = 20,
-        scrollX    = TRUE,
-        dom        = "lfrtip"
-      ),
+    datatable(df,
+      options = list(pageLength = 20, scrollX = TRUE, dom = "lfrtip"),
       class = "compact hover stripe"
     )
   })
