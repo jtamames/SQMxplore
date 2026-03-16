@@ -508,6 +508,43 @@ ui <- page_navbar(
         card_body(class = "p-2", DTOutput("data_table"))
       )
     )
+  ),
+  # ══════════════════════════════════════════
+  #  TAB 4 — KRONA
+  # ══════════════════════════════════════════
+  nav_panel(
+    "Krona",
+    layout_sidebar(
+      sidebar = sidebar(
+        width = 250,
+        uiOutput("krona_ktcheck_ui"),
+        tags$hr(class = "section-divider"),
+        tags$div(class = "form-label mt-1", "Filter samples"),
+        uiOutput("krona_sample_filter_ui"),
+        tags$hr(class = "section-divider"),
+        actionButton("do_krona", "Generate Krona", class = "btn-primary w-100 mt-1"),
+        tags$div(style = "margin-top:5px;",
+          uiOutput("krona_download_ui")
+        ),
+        tags$div(style = "margin-top:10px;",
+          uiOutput("krona_status_ui")
+        )
+      ),
+      card(
+        card_header(
+          div(
+            style = "display:flex; justify-content:space-between; align-items:center;",
+            span("Krona Chart"),
+            uiOutput("krona_badge_ui")
+          )
+        ),
+        card_body(
+          class = "p-0",
+          style = "min-height:600px;",
+          uiOutput("krona_view_ui")
+        )
+      )
+    )
   )
 )
 # ─────────────────────────────────────────────
@@ -1230,6 +1267,148 @@ server <- function(input, output, session) {
       df <- get_table_data()
       req(df)
       write.csv(df, file, row.names = TRUE)
+    }
+  )
+  # ─────────────────────────────────────────────
+  #  KRONA
+  # ─────────────────────────────────────────────
+  krona_file   <- reactiveVal(NULL)   # path to the generated .html
+  krona_status <- reactiveVal("idle") # idle | generating | ready | error | no_kt
+  # Check KronaTools availability once per session
+  kt_available <- reactive({
+    system("ktImportText", ignore.stdout = TRUE, ignore.stderr = TRUE) == 0
+  })
+  # ── KronaTools status badge ──
+  output$krona_ktcheck_ui <- renderUI({
+    if (kt_available()) {
+      tags$div(
+        style = "font-size:0.8rem;",
+        tags$span(style = "color:#1a9e6e; margin-right:5px;", "●"),
+        tags$span(style = "color:#7a90a8;", "KronaTools: "),
+        tags$span(style = "color:#1a9e6e; font-weight:600;", "AVAILABLE")
+      )
+    } else {
+      tagList(
+        tags$div(
+          style = "font-size:0.8rem;",
+          tags$span(style = "color:#c0392b; margin-right:5px;", "✕"),
+          tags$span(style = "color:#7a90a8;", "KronaTools: "),
+          tags$span(style = "color:#c0392b; font-weight:600;", "NOT FOUND")
+        ),
+        tags$div(
+          class = "path-info",
+          style = "margin-top:4px; color:#c0392b;",
+          "ktImportText must be in PATH.",
+          tags$a(
+            href = "https://github.com/marbl/Krona",
+            target = "_blank",
+            style = "color:#1a6eb5;",
+            " Install KronaTools"
+          )
+        )
+      )
+    }
+  })
+  # ── Sample filter for Krona ──
+  output$krona_sample_filter_ui <- renderUI({
+    req(sqm_data())
+    samples <- tryCatch(sqm_data()$samples, error = function(e) NULL)
+    req(samples)
+    checkboxGroupInput("krona_samples", NULL, choices = samples, selected = samples)
+  })
+  # ── Generate Krona ──
+  observeEvent(input$do_krona, {
+    req(sqm_data())
+    if (!kt_available()) {
+      showNotification("ktImportText not found. Please install KronaTools.", type = "error", duration = 8)
+      return()
+    }
+    krona_status("generating")
+    krona_file(NULL)
+    tryCatch({
+      proj <- sqm_data()
+      # Subset samples if needed
+      all_samples <- proj$samples
+      sel_samples  <- input$krona_samples
+      if (!is.null(sel_samples) && !setequal(sel_samples, all_samples)) {
+        proj <- subsetSamples(proj, sel_samples)
+      }
+      out_file <- file.path(tempdir(), paste0("sqmxplore_krona_", format(Sys.time(), "%Y%m%d%H%M%S"), ".html"))
+      exportKrona(proj, output_name = out_file)
+      if (file.exists(out_file)) {
+        krona_file(out_file)
+        krona_status("ready")
+      } else {
+        krona_status("error")
+        showNotification("Krona file was not generated.", type = "error", duration = 8)
+      }
+    }, error = function(e) {
+      krona_status("error")
+      showNotification(paste("Krona error:", e$message), type = "error", duration = 10)
+    })
+  })
+  # ── Status text ──
+  output$krona_status_ui <- renderUI({
+    s   <- krona_status()
+    col <- switch(s, idle = "#7a90a8", generating = "#3b9ede", ready = "#1a9e6e", error = "#c0392b", no_kt = "#c0392b")
+    ico <- switch(s, idle = "○", generating = "◌", ready = "●", error = "✕", no_kt = "✕")
+    lbl <- switch(s, idle = "IDLE", generating = "GENERATING…", ready = "READY", error = "ERROR", no_kt = "NO KRONATOOLS")
+    tags$div(
+      style = "font-size:0.8rem;",
+      tags$span(style = paste0("color:", col, "; margin-right:5px;"), ico),
+      tags$span(style = "color:#7a90a8;", "Status: "),
+      tags$span(style = paste0("color:", col, "; font-weight:600;"), lbl)
+    )
+  })
+  # ── Badge in card header ──
+  output$krona_badge_ui <- renderUI({
+    s <- krona_status()
+    if (s == "ready") {
+      tags$span(class = "badge",
+        style = "background:rgba(26,158,110,0.1); color:#1a9e6e; font-size:0.72rem; border:1px solid rgba(26,158,110,0.3);",
+        "● Ready")
+    } else if (s == "generating") {
+      tags$span(class = "badge",
+        style = "background:rgba(59,158,222,0.1); color:#3b9ede; font-size:0.72rem; border:1px solid rgba(59,158,222,0.3);",
+        "◌ Generating…")
+    } else {
+      tags$span(class = "badge",
+        style = "background:#eef2f7; color:#7a90a8; font-size:0.72rem; border:1px solid #d0dae6;",
+        "No chart")
+    }
+  })
+  # ── Render Krona HTML in iframe ──
+  output$krona_view_ui <- renderUI({
+    kf <- krona_file()
+    if (is.null(kf) || !file.exists(kf)) {
+      return(tags$div(
+        style = "color:var(--muted); font-size:0.85rem; padding:2rem; text-align:center;",
+        tags$div(style = "font-size:2rem; margin-bottom:8px;", "🌐"),
+        tags$div("Select samples and click ", tags$strong("Generate Krona"), " to build the chart.")
+      ))
+    }
+    # Serve via addResourcePath so Shiny can deliver the file
+    static_dir  <- dirname(kf)
+    static_name <- paste0("krona_", basename(kf))
+    addResourcePath(static_name, static_dir)
+    iframe_src <- paste0(static_name, "/", basename(kf))
+    tags$iframe(
+      src    = iframe_src,
+      style  = "width:100%; height:680px; border:none;",
+      id     = "krona_iframe"
+    )
+  })
+  # ── Download button (only shown when ready) ──
+  output$krona_download_ui <- renderUI({
+    req(krona_status() == "ready")
+    downloadButton("download_krona", "Download HTML", class = "btn-outline-secondary w-100")
+  })
+  output$download_krona <- downloadHandler(
+    filename = function() paste0("krona_", Sys.Date(), ".html"),
+    content  = function(file) {
+      kf <- krona_file()
+      req(kf, file.exists(kf))
+      file.copy(kf, file)
     }
   )
 }
