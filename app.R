@@ -4,9 +4,7 @@ library(shinyFiles)
 library(bslib)
 library(SQMtools)
 library(DT)
-
 `%||%` <- function(a, b) if (!is.null(a)) a else b
-
 # ─────────────────────────────────────────────
 #  LIGHT THEME
 # ─────────────────────────────────────────────
@@ -22,28 +20,11 @@ sqm_theme <- bs_theme(
   base_font    = font_google("IBM Plex Sans"),
   heading_font = font_google("IBM Plex Mono")
 )
-
-# ─────────────────────────────────────────────
-#  HELPERS UI
-# ─────────────────────────────────────────────
-stat_card <- function(id, label, icon_char = "◈") {
-  card(
-    class = "stat-card",
-    card_body(
-      class = "p-3",
-      tags$div(class = "stat-icon", icon_char),
-      tags$div(class = "stat-value", textOutput(id, inline = TRUE)),
-      tags$div(class = "stat-label", label)
-    )
-  )
-}
-
 # ─────────────────────────────────────────────
 #  CSS
 # ─────────────────────────────────────────────
 custom_css <- "
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
-
 :root {
   --blue:   #1a6eb5;
   --teal:   #1a9e6e;
@@ -54,9 +35,7 @@ custom_css <- "
   --muted:  #7a90a8;
   --text:   #1a2a3a;
 }
-
 body { background: var(--bg); color: var(--text); }
-
 .navbar {
   background: linear-gradient(90deg, #0e4a82 0%, #1a6eb5 100%) !important;
   border-bottom: 3px solid #1a9e6e !important;
@@ -72,7 +51,6 @@ body { background: var(--bg); color: var(--text); }
 .nav-link { color: rgba(255,255,255,0.65) !important; font-size: 0.85rem; }
 .nav-link:hover { color: #ffffff !important; }
 .nav-link.active { color: #ffffff !important; border-bottom: 2px solid #1a9e6e; }
-
 .card {
   background: var(--card) !important;
   border: 1px solid var(--border) !important;
@@ -89,29 +67,10 @@ body { background: var(--bg); color: var(--text); }
   color: var(--blue) !important;
   padding: 0.6rem 1rem !important;
 }
-
-.stat-card { border-left: 3px solid var(--blue) !important; }
-.stat-icon { font-size: 1.4rem; color: var(--blue); margin-bottom: 4px; }
-.stat-value {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 1.6rem;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--text);
-}
-.stat-label {
-  font-size: 0.72rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-top: 4px;
-}
-
 .bslib-sidebar-layout > .sidebar {
   background: var(--panel) !important;
   border-right: 1px solid var(--border) !important;
 }
-
 .form-control, .form-select {
   background: #ffffff !important;
   border: 1px solid var(--border) !important;
@@ -129,7 +88,6 @@ body { background: var(--bg); color: var(--text); }
   letter-spacing: 0.05em;
   margin-bottom: 3px;
 }
-
 .btn-primary {
   background: var(--blue) !important;
   border-color: var(--blue) !important;
@@ -149,7 +107,6 @@ body { background: var(--bg); color: var(--text); }
   border-color: var(--blue) !important;
   color: var(--blue) !important;
 }
-
 .project-badge {
   display: inline-block;
   background: rgba(26,110,181,0.08);
@@ -161,13 +118,11 @@ body { background: var(--bg); color: var(--text); }
   font-family: 'IBM Plex Mono', monospace;
   margin: 2px;
 }
-
 .section-divider {
   border: none;
   border-top: 1px solid var(--border);
   margin: 10px 0;
 }
-
 .path-info {
   font-size: 0.72rem;
   color: var(--muted);
@@ -175,7 +130,6 @@ body { background: var(--bg); color: var(--text); }
   font-family: 'IBM Plex Mono', monospace;
   margin-bottom: 6px;
 }
-
 .dataTables_wrapper { color: var(--text) !important; }
 table.dataTable { background: #ffffff !important; color: var(--text) !important; }
 table.dataTable thead th {
@@ -198,7 +152,6 @@ table.dataTable tbody tr:hover { background: #eef5fc !important; }
   color: #ffffff !important;
   border-radius: 4px;
 }
-
 .btn-default {
   background: #ffffff !important;
   border: 1px solid var(--border) !important;
@@ -206,11 +159,8 @@ table.dataTable tbody tr:hover { background: #eef5fc !important; }
   font-size: 0.82rem !important;
 }
 .btn-default:hover { border-color: var(--blue) !important; color: var(--blue) !important; }
-
 /* ── Function search box ── */
-.func-search-box {
-  position: relative;
-}
+.func-search-box { position: relative; }
 .func-search-box .search-icon {
   position: absolute;
   left: 8px;
@@ -221,9 +171,7 @@ table.dataTable tbody tr:hover { background: #eef5fc !important; }
   pointer-events: none;
   z-index: 10;
 }
-.func-search-box .form-control {
-  padding-left: 26px !important;
-}
+.func-search-box .form-control { padding-left: 26px !important; }
 .func-search-hint {
   font-size: 0.7rem;
   color: var(--muted);
@@ -252,34 +200,79 @@ table.dataTable tbody tr:hover { background: #eef5fc !important; }
   font-family: 'IBM Plex Mono', monospace;
   margin-top: 4px;
 }
-
+/* ── Project summary cards ── */
+.sqm-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.sqm-section-header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 7px 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+.sqm-section-body { padding: 10px 14px; }
+.sqm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.sqm-table thead th {
+  background: var(--panel);
+  color: var(--blue);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+.sqm-table thead th:first-child { text-align: left; }
+.sqm-table tbody td {
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(208,218,230,0.4);
+  color: var(--text);
+  text-align: right;
+}
+.sqm-table tbody td:first-child { text-align: left; color: var(--muted); font-size: 0.78rem; }
+.sqm-table tbody tr:last-child td { border-bottom: none; }
+.sqm-table tbody tr:hover td { background: #eef5fc; }
+.sqm-subsection-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 10px 0 5px;
+  padding-left: 2px;
+}
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--blue); }
 "
-
 # ─────────────────────────────────────────────
 #  HELPER: build regex pattern for subsetFun
 #  from free text with comma/semicolon-separated terms
 # ─────────────────────────────────────────────
 build_func_pattern <- function(search_text) {
-  # Returns NULL if empty, or a regex pattern "term1|term2|..."
   search_text <- trimws(search_text)
   if (nchar(search_text) == 0) return(NULL)
-
   terms <- trimws(unlist(strsplit(search_text, "[,;]+")))
   terms <- terms[nchar(terms) > 0]
   if (length(terms) == 0) return(NULL)
-
-  # Escape special regex characters so each term is treated as literal
   escaped <- gsub("([.+*?^${}()|\\[\\]\\\\])", "\\\\\\1", terms)
   paste(escaped, collapse = "|")
 }
-
 # ─────────────────────────────────────────────
 #  HELPER: detect which count types are available
-#  in the object for a given functional level
 # ─────────────────────────────────────────────
 available_func_counts <- function(proj, fun_level) {
   all_counts <- c(
@@ -295,91 +288,62 @@ available_func_counts <- function(proj, fun_level) {
     !is.null(tbl) && (is.matrix(tbl) || is.data.frame(tbl)) && nrow(tbl) > 0
   }, all_counts)
 }
-
 available_tax_counts <- function(proj) {
   all_counts <- c(
     "Percentages (percent)"  = "percent",
     "Raw abundances (abund)" = "abund"
   )
   Filter(function(ct) {
-    # Check at phylum level, which is always present
     tbl <- tryCatch(proj$taxa$phylum[[ct]], error = function(e) NULL)
     !is.null(tbl) && (is.matrix(tbl) || is.data.frame(tbl)) && nrow(tbl) > 0
   }, all_counts)
 }
-
 # ─────────────────────────────────────────────
 #  UI
 # ─────────────────────────────────────────────
 ui <- page_navbar(
   title = "SQMxplore",
   theme = sqm_theme,
-
   navbar_options = navbar_options(theme = "dark", bg = "#0e4a82"),
-
   header = tagList(
     useShinyjs(),
     tags$head(tags$style(HTML(custom_css)))
   ),
-
   # ══════════════════════════════════════════
   #  TAB 1 — PROJECT
   # ══════════════════════════════════════════
   nav_panel(
     "Project",
-
     layout_sidebar(
+      fillable = FALSE,
       sidebar = sidebar(
         width = 300, open = TRUE,
-
         tags$div(class = "form-label mt-1", "Project directory"),
         shinyDirButton(
           "dir_project", "Select directory", "Choose the project directory",
           multiple = FALSE, class = "btn-default w-100 mb-1"
         ),
         tags$div(class = "path-info", textOutput("path_project", inline = TRUE)),
-
         uiOutput("project_info_ui"),
         uiOutput("manual_tables_ui"),
-
         hr(class = "section-divider"),
-
         actionButton("load_project", "Load", class = "btn-primary w-100 mb-2"),
-
         hr(class = "section-divider"),
         uiOutput("project_status_ui")
       ),
-
-      fluidRow(
-        column(3, stat_card("stat_contigs", "Contigs",  "⬡")),
-        column(3, stat_card("stat_orfs",    "ORFs",     "◈")),
-        column(3, stat_card("stat_samples", "Samples",  "◉")),
-        column(3, stat_card("stat_taxa",    "Taxa",     "✦"))
-      ),
-
-      br(),
-
-      fluidRow(
-        column(12,
-          card(
-            card_header("Samples"),
-            card_body(uiOutput("samples_badges"))
-          )
-        )
+      tags$div(style = "padding: 1rem;",
+        uiOutput("project_summary_ui")
       )
     )
   ),
-
   # ══════════════════════════════════════════
   #  TAB 2 — PLOTS
   # ══════════════════════════════════════════
   nav_panel(
     "Plots",
-
     layout_sidebar(
       sidebar = sidebar(
         width = 270,
-
         tags$div(class = "form-label mt-1", "Plot type"),
         selectInput("plot_type", NULL,
           choices = c(
@@ -390,16 +354,13 @@ ui <- page_navbar(
             "Binning"             = "bins"
           )
         ),
-
         hr(class = "section-divider"),
         uiOutput("plot_controls_ui"),
         hr(class = "section-divider"),
-
         actionButton("do_plot", "Generate plot", class = "btn-primary w-100 mt-1"),
         br(), br(),
         downloadButton("download_plot", "Download PNG", class = "btn-outline-secondary w-100")
       ),
-
       card(
         card_header(
           div(
@@ -412,17 +373,14 @@ ui <- page_navbar(
       )
     )
   ),
-
   # ══════════════════════════════════════════
   #  TAB 3 — TABLES
   # ══════════════════════════════════════════
   nav_panel(
     "Tables",
-
     layout_sidebar(
       sidebar = sidebar(
         width = 270,
-
         tags$div(class = "form-label mt-1", "Table"),
         selectInput("table_type", NULL,
           choices = c(
@@ -434,15 +392,12 @@ ui <- page_navbar(
             "Functions — KEGG"    = "fun_kegg"
           )
         ),
-
         hr(class = "section-divider"),
         tags$div(class = "form-label", "Filter samples"),
         uiOutput("table_sample_filter"),
-
         hr(class = "section-divider"),
         downloadButton("download_table", "Download CSV", class = "btn-outline-secondary w-100")
       ),
-
       card(
         card_header("Data"),
         card_body(class = "p-2", DTOutput("data_table"))
@@ -450,49 +405,38 @@ ui <- page_navbar(
     )
   )
 )
-
 # ─────────────────────────────────────────────
 #  SERVER
 # ─────────────────────────────────────────────
 server <- function(input, output, session) {
-
   roots    <- c(home = normalizePath("~"), root = "/")
   sqm_data <- reactiveVal(NULL)
   status   <- reactiveVal("idle")
-
   tables_path  <- reactiveVal(NULL)
   need_manual  <- reactiveVal(FALSE)
   creator_name <- reactiveVal(NULL)
   is_sqm_full  <- reactiveVal(FALSE)   # TRUE only when loaded with loadSQM
-
   # ── Dir choosers ──────────────────────────
-  shinyDirChoose(input, "dir_project",      roots = roots)
+  shinyDirChoose(input, "dir_project",       roots = roots)
   shinyDirChoose(input, "dir_manual_tables", roots = roots)
-
   path_project <- reactive({
     req(input$dir_project)
     parseDirPath(roots, input$dir_project)
   })
-
   output$path_project <- renderText({
     tryCatch(path_project(), error = function(e) "")
   })
-
   # ── Read creator.txt and resolve tables path ──
   observeEvent(path_project(), {
     proj_dir <- path_project()
     req(nchar(proj_dir) > 0)
-
     need_manual(FALSE)
     tables_path(NULL)
     creator_name(NULL)
-
     creator_file <- file.path(proj_dir, "creator.txt")
-
     if (file.exists(creator_file)) {
       creator <- trimws(readLines(creator_file, n = 1, warn = FALSE))
       creator_name(creator)
-
       if (grepl("SqueezeMeta", creator, ignore.case = TRUE)) {
         tables_path(proj_dir)
       } else {
@@ -511,7 +455,6 @@ server <- function(input, output, session) {
       )
     }
   })
-
   observeEvent(input$dir_manual_tables, {
     tp <- tryCatch(parseDirPath(roots, input$dir_manual_tables), error = function(e) NULL)
     req(tp)
@@ -520,20 +463,16 @@ server <- function(input, output, session) {
       need_manual(FALSE)
     }
   })
-
   output$project_info_ui <- renderUI({
     req(path_project())
     proj_dir     <- path_project()
     creator_file <- file.path(proj_dir, "creator.txt")
-
     creator_txt <- if (file.exists(creator_file)) {
       trimws(readLines(creator_file, n = 1, warn = FALSE))
     } else {
       "unknown"
     }
-
     tp <- tables_path()
-
     tagList(
       tags$div(
         class = "path-info",
@@ -554,7 +493,6 @@ server <- function(input, output, session) {
       }
     )
   })
-
   output$manual_tables_ui <- renderUI({
     req(need_manual())
     tagList(
@@ -571,11 +509,9 @@ server <- function(input, output, session) {
       )
     )
   })
-
   # ── Load project ──────────────────────────
   observeEvent(input$load_project, {
     tp <- tables_path()
-
     if (is.null(tp) || !dir.exists(tp)) {
       showNotification(
         "Directory not available. Please select it manually.",
@@ -583,7 +519,6 @@ server <- function(input, output, session) {
       )
       return()
     }
-
     status("loading")
     tryCatch({
       is_sqm <- grepl("SqueezeMeta", creator_name() %||% "", ignore.case = TRUE)
@@ -596,7 +531,6 @@ server <- function(input, output, session) {
       showNotification(paste("Error:", e$message), type = "error", duration = 8)
     })
   })
-
   # ── Status ────────────────────────────────
   output$project_status_ui <- renderUI({
     s   <- status()
@@ -609,51 +543,251 @@ server <- function(input, output, session) {
       tags$span(style = paste0("color:", col, "; font-weight:600;"), toupper(s))
     )
   })
-
-  # ── Stats ─────────────────────────────────
-  output$stat_contigs <- renderText({
-    req(sqm_data())
-    tryCatch(format(nrow(sqm_data()$contigs$table), big.mark = ","), error = function(e) "—")
+  # ── Project summary parser helpers ────────
+  # Parse a block of tab-delimited lines into a data.frame.
+  # Lines like: "\tRow label\tval1\tval2"
+  # First line is assumed to be the header if it starts with "\t\t"
+  parse_tsv_block <- function(lines) {
+    lines <- lines[nchar(trimws(lines)) > 0]
+    if (length(lines) == 0) return(NULL)
+    split_line <- function(l) trimws(unlist(strsplit(sub("^\t", "", l), "\t")))
+    rows <- lapply(lines, split_line)
+    max_cols <- max(sapply(rows, length))
+    rows <- lapply(rows, function(r) { length(r) <- max_cols; r[is.na(r)] <- ""; r })
+    mat <- do.call(rbind, rows)
+    as.data.frame(mat, stringsAsFactors = FALSE)
+  }
+  # Build an HTML table tag from a data.frame where row 1 = header
+  make_html_table <- function(df) {
+    if (is.null(df) || nrow(df) < 2) return(NULL)
+    header <- as.character(df[1, ])
+    body   <- df[-1, , drop = FALSE]
+    th_cells <- paste0(
+      '<th>', ifelse(header == "", "", header), '</th>',
+      collapse = ""
+    )
+    tr_rows <- apply(body, 1, function(row) {
+      tds <- paste0('<td>', row, '</td>', collapse = "")
+      paste0('<tr>', tds, '</tr>')
+    })
+    HTML(paste0(
+      '<table class="sqm-table">',
+      '<thead><tr>', th_cells, '</tr></thead>',
+      '<tbody>', paste(tr_rows, collapse = ""), '</tbody>',
+      '</table>'
+    ))
+  }
+  # Build a two-column table (Metric | Value) from "Label:\tvalue" lines
+  make_kv_table <- function(lines) {
+    rows <- lapply(lines, function(l) {
+      l <- sub("^\t+", "", l)
+      parts <- strsplit(l, "\t")[[1]]
+      if (length(parts) >= 2) {
+        key <- trimws(sub(":$", "", parts[1]))
+        val <- trimws(parts[2])
+        tags$tr(tags$td(key), tags$td(val))
+      }
+    })
+    rows <- Filter(Negate(is.null), rows)
+    if (length(rows) == 0) return(NULL)
+    tags$table(
+      class = "sqm-table",
+      tags$thead(tags$tr(tags$th("Metric"), tags$th("Value"))),
+      tags$tbody(tagList(rows))
+    )
+  }
+  # Build taxonomy coverage table with "Rank" header and italic Species values
+  make_taxcov_table <- function(lines) {
+    rows <- lapply(lines, function(l) {
+      l <- sub("^\t+", "", l)
+      parts <- strsplit(l, "\t")[[1]]
+      if (length(parts) >= 2) {
+        rank <- trimws(sub(":$", "", parts[1]))
+        val  <- trimws(parts[2])
+        val_tag <- tags$td(val)
+        tags$tr(tags$td(rank), val_tag)
+      }
+    })
+    rows <- Filter(Negate(is.null), rows)
+    if (length(rows) == 0) return(NULL)
+    tags$table(
+      class = "sqm-table",
+      tags$thead(tags$tr(tags$th("Rank"), tags$th("Value"))),
+      tags$tbody(tagList(rows))
+    )
+  }
+  # Wrap content in a styled section card
+  sqm_section <- function(title, ...) {
+    tags$div(class = "sqm-section",
+      tags$div(class = "sqm-section-header", title),
+      tags$div(class = "sqm-section-body", ...)
+    )
+  }
+  # ── Main summary renderer ──────────────────
+  output$project_summary_ui <- renderUI({
+    proj <- sqm_data()
+    if (is.null(proj)) {
+      return(tags$div(
+        style = "color:var(--muted); font-size:0.85rem; padding:1rem;",
+        "No project loaded yet."
+      ))
+    }
+    raw <- tryCatch(
+      capture.output(summary(proj)),
+      error = function(e) NULL
+    )
+    if (is.null(raw)) {
+      return(tags$div(style = "color:#c0392b; padding:1rem;", "Could not generate summary."))
+    }
+    # ── Parse project name ──
+    project_name <- ""
+    name_line <- grep("BASE PROJECT NAME:", raw, value = TRUE)
+    if (length(name_line) > 0) {
+      project_name <- trimws(sub(".*BASE PROJECT NAME:\\s*", "", name_line[1]))
+    }
+    # ── Split raw lines into named sections ──
+    sections <- list()
+    current  <- NULL
+    buf      <- c()
+    sep_pat  <- "^\\s*-{5,}\\s*$"
+    for (ln in raw) {
+      if (grepl("BASE PROJECT NAME:", ln)) next
+      if (grepl(sep_pat, ln))              next
+      sec_match <- regmatches(ln, regexpr("^\\t([A-Za-z][A-Za-z0-9 /]+):\\s*$", ln))
+      if (length(sec_match) > 0) {
+        if (!is.null(current)) sections[[current]] <- buf
+        current <- trimws(sub(":", "", sub("^\t", "", sec_match)))
+        buf <- c()
+      } else {
+        buf <- c(buf, ln)
+      }
+    }
+    if (!is.null(current)) sections[[current]] <- buf
+    # ── Build UI panels ──
+    panels <- list()
+    # Header badge with project name
+    if (nchar(project_name) > 0) {
+      panels[["name"]] <- tags$div(
+        style = "margin-bottom:12px; display:flex; align-items:center; gap:10px;",
+        tags$span(
+          style = "font-family:'IBM Plex Mono',monospace; font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;",
+          "Project"
+        ),
+        tags$span(class = "project-badge", style = "font-size:0.85rem; padding:3px 10px;",
+          project_name
+        )
+      )
+    }
+    # READS section — reorder rows and rename metrics
+    reads_key <- names(sections)[tolower(names(sections)) == "reads"]
+    if (length(reads_key) > 0) {
+      lines <- sections[[reads_key[1]]]
+      data_lines <- lines[nchar(trimws(lines)) > 0]
+      if (length(data_lines) >= 2) {
+        header_line <- sub("^\t\t", "\tMetric\t", data_lines[1])
+        tbl_lines   <- c(header_line, data_lines[-1])
+        df <- parse_tsv_block(tbl_lines)
+        # Rename rows
+        df[, 1] <- sub("^Mapping to ORFs$",  "Reads with ORFs",             df[, 1])
+        df[, 1] <- sub("^Percent$",           "Percent of reads with ORFs",  df[, 1])
+        # Reorder body rows: Input reads, Reads with ORFs, Percent of reads with ORFs
+        desired <- c("Input reads", "Reads with ORFs", "Percent of reads with ORFs")
+        body    <- df[-1, , drop = FALSE]
+        body    <- body[match(desired, body[, 1]), , drop = FALSE]
+        body    <- body[!is.na(body[, 1]), , drop = FALSE]
+        df      <- rbind(df[1, , drop = FALSE], body)
+        tbl     <- make_html_table(df)
+        panels[["READS"]] <- sqm_section("Reads", tbl)
+      }
+    }
+    # CONTIGS section — has KV pairs + most abundant taxa table
+    contigs_key <- names(sections)[tolower(names(sections)) == "contigs"]
+    if (length(contigs_key) > 0) {
+      lines <- sections[[contigs_key[1]]]
+      lines <- lines[nchar(trimws(lines)) > 0]
+      # KV lines: single-value lines like "\tNumber of contigs:\t37863"
+      kv_lines <- lines[grepl(":\t", lines) & !grepl("\t\t", lines) &
+                          sapply(strsplit(lines, "\t"), function(x) sum(nchar(trimws(x)) > 0)) == 2]
+      # Most abundant taxa table
+      abund_start <- which(grepl("Most abundant taxa", lines))
+      abund_lines <- c()
+      if (length(abund_start) > 0) {
+        abund_lines <- lines[(abund_start + 1):length(lines)]
+        abund_lines <- abund_lines[nchar(trimws(abund_lines)) > 0]
+      }
+      # Split KV lines: assembly stats (before Superkingdom) vs taxonomy coverage
+      tax_ranks <- c("Superkingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+      tax_rank_pat <- paste0("^\t(", paste(tax_ranks, collapse = "|"), "):\t")
+      is_tax_kv  <- grepl(tax_rank_pat, kv_lines)
+      stat_lines <- kv_lines[!is_tax_kv]
+      taxcov_lines <- kv_lines[is_tax_kv]
+      body_parts <- list()
+      # Assembly metric table
+      if (length(stat_lines) > 0) {
+        body_parts[["kv"]] <- make_kv_table(stat_lines)
+      }
+      # Taxonomy coverage table
+      if (length(taxcov_lines) > 0) {
+        body_parts[["taxcovlabel"]] <- tags$div(class = "sqm-subsection-label", "Taxonomic classification")
+        body_parts[["taxcov"]] <- make_taxcov_table(taxcov_lines)
+      }
+      # Most abundant taxa table — Species values in italic
+      if (length(abund_lines) >= 2) {
+        body_parts[["abundlabel"]] <- tags$div(class = "sqm-subsection-label", "Most abundant taxa")
+        header_line <- sub("^\t\t", "\tRank\t", abund_lines[1])
+        df_abund  <- parse_tsv_block(c(header_line, abund_lines[-1]))
+        # Italicise cells in the Species row (all columns except the rank label)
+        species_rows <- which(trimws(df_abund[-1, 1]) == "Species") + 1
+        if (length(species_rows) > 0) {
+          for (ri in species_rows) {
+            df_abund[ri, -1] <- paste0("<em>", df_abund[ri, -1], "</em>")
+          }
+        }
+        tbl_abund <- make_html_table(df_abund)
+        body_parts[["abund"]] <- tbl_abund
+      }
+      panels[["CONTIGS"]] <- sqm_section("Contigs", tagList(body_parts))
+    }
+    # ORFs section — tab-separated table with sample columns
+    orfs_key <- names(sections)[tolower(names(sections)) == "orfs"]
+    if (length(orfs_key) > 0) {
+      lines <- sections[[orfs_key[1]]]
+      data_lines <- lines[nchar(trimws(lines)) > 0]
+      if (length(data_lines) >= 2) {
+        header_line <- sub("^\t\t", "\tMetric\t", data_lines[1])
+        tbl_lines   <- c(header_line, data_lines[-1])
+        df  <- parse_tsv_block(tbl_lines)
+        tbl <- make_html_table(df)
+        panels[["ORFS"]] <- sqm_section("ORFs", tbl)
+      }
+    }
+    # Samples card (always available)
+    samples <- tryCatch(proj$samples, error = function(e) NULL)
+    if (!is.null(samples)) {
+      panels[["samples"]] <- sqm_section("Samples",
+        tags$div(style = "padding-top:2px;",
+          tagList(lapply(samples, function(s) tags$span(class = "project-badge", s)))
+        )
+      )
+    }
+    tagList(panels)
   })
-  output$stat_orfs <- renderText({
-    req(sqm_data())
-    tryCatch(format(nrow(sqm_data()$orfs$table), big.mark = ","), error = function(e) "—")
-  })
-  output$stat_samples <- renderText({
-    req(sqm_data())
-    tryCatch(as.character(length(sqm_data()$samples)), error = function(e) "—")
-  })
-  output$stat_taxa <- renderText({
-    req(sqm_data())
-    tryCatch(format(nrow(sqm_data()$taxa$phylum$abund), big.mark = ","), error = function(e) "—")
-  })
-
-  output$samples_badges <- renderUI({
-    req(sqm_data())
-    samples <- tryCatch(sqm_data()$samples, error = function(e) NULL)
-    req(samples)
-    tagList(lapply(samples, function(s) tags$span(class = "project-badge", s)))
-  })
-
+  # (samples are rendered inside project_summary_ui)
   # ─────────────────────────────────────────
   #  Dynamic plot controls
   # ─────────────────────────────────────────
   output$plot_controls_ui <- renderUI({
     pt <- input$plot_type
     if (is.null(pt)) return(NULL)
-
     rank_choices <- c(
       "Phylum" = "phylum", "Class" = "class", "Order" = "order",
       "Family" = "family", "Genus" = "genus", "Species" = "species"
     )
-
     if (pt == "taxonomy_bar") {
       tax_counts <- if (!is.null(sqm_data())) available_tax_counts(sqm_data()) else c("Percentage (percent)" = "percent")
       tagList(
         tags$div(class = "form-label", "Taxonomic rank"),
         selectInput("tax_rank", NULL, choices = rank_choices),
-
-        # ── Text search (full SQM object only) ──
         if (is_sqm_full()) tagList(
           tags$div(class = "form-label", "Search taxa"),
           tags$div(
@@ -674,9 +808,7 @@ server <- function(input, output, session) {
           style = "color:#c0392b;",
           "⚠ Taxonomy search requires a full SQM object (not SQMlite)."
         ),
-
         hr(class = "section-divider"),
-
         tags$div(class = "form-label", "Count type"),
         selectInput("tax_count", NULL, choices = tax_counts,
           selected = if ("percent" %in% tax_counts) "percent" else tax_counts[[1]]),
@@ -685,17 +817,13 @@ server <- function(input, output, session) {
         tags$div(class = "form-label", "Font size"),
         numericInput("tax_base_size", NULL, value = 11, min = 6, max = 24, step = 1)
       )
-
     } else if (pt %in% c("func_cog", "func_kegg", "func_pfam")) {
-
       fun_label <- switch(pt,
         func_cog  = "COG",
         func_kegg = "KEGG",
         func_pfam = "PFAM"
       )
-
       tagList(
-        # ── Text search (full SQM object only) ──
         if (is_sqm_full()) tagList(
           tags$div(class = "form-label", paste("Search", fun_label, "functions")),
           tags$div(
@@ -721,47 +849,35 @@ server <- function(input, output, session) {
           style = "color:#c0392b;",
           "⚠ Function search requires a full SQM object (not SQMlite)."
         ),
-
         hr(class = "section-divider"),
-
-        # ── Count type ──────────────────────────
         tags$div(class = "form-label", "Count type"),
         uiOutput("func_count_ui"),
-
         hr(class = "section-divider"),
-
         uiOutput("n_funcs_ui"),
-
         tags$div(class = "form-label", "Font size"),
         numericInput("func_base_size", NULL, value = 11, min = 6, max = 24, step = 1)
       )
-
     } else {
       NULL
     }
   })
-
-  # ── Search status badge ───────────────────
+  # ── Search status badges ──────────────────
   output$func_search_status <- renderUI({
     pt <- input$plot_type
     req(pt %in% c("func_cog", "func_kegg", "func_pfam"))
     req(sqm_data())
-
     search_text <- input$func_search %||% ""
     pattern <- build_func_pattern(search_text)
     if (is.null(pattern)) return(NULL)
-
     fun_level <- switch(pt,
       func_cog  = "COG",
       func_kegg = "KEGG",
       func_pfam = "PFAM"
     )
-
     n_matches <- tryCatch({
       proj_sub <- subsetFun(sqm_data(), fun = pattern, ignore_case = TRUE, fixed = FALSE)
       nrow(proj_sub$functions[[fun_level]]$abund)
     }, error = function(e) 0L)
-
     if (n_matches == 0) {
       tags$div(class = "func-nomatch-badge", "✕ No matches")
     } else {
@@ -770,29 +886,21 @@ server <- function(input, output, session) {
       )
     }
   })
-
-  # ── Taxonomy search status badge ──────────
   output$tax_search_status <- renderUI({
     req(input$plot_type == "taxonomy_bar")
     req(sqm_data())
-
     search_text <- trimws(input$tax_search %||% "")
     if (nchar(search_text) == 0) return(NULL)
-
     rank <- input$tax_rank %||% "phylum"
-
-    # Get all taxon names at the selected rank
     all_taxa <- tryCatch(
       rownames(sqm_data()$taxa[[rank]]$abund),
       error = function(e) character(0)
     )
-
     terms   <- trimws(unlist(strsplit(search_text, "[,;]+")))
     terms   <- terms[nchar(terms) > 0]
     matched <- unique(unlist(lapply(terms, function(t)
       all_taxa[grepl(t, all_taxa, ignore.case = TRUE)]
     )))
-
     if (length(matched) == 0) {
       tags$div(class = "func-nomatch-badge", "✕ No matches")
     } else {
@@ -801,32 +909,25 @@ server <- function(input, output, session) {
       )
     }
   })
-
-  # ── Top N numeric control (always visible) ──
+  # ── Top N and count type controls ─────────
   output$n_funcs_ui <- renderUI({
     tagList(
       tags$div(class = "form-label", "No. of functions (top N)"),
       numericInput("n_funcs", NULL, value = 20, min = 1, max = 200, step = 1)
     )
   })
-
-  # ── Count type selector for functions ────
   output$func_count_ui <- renderUI({
     pt <- input$plot_type
     req(pt %in% c("func_cog", "func_kegg", "func_pfam"))
-
     fun_level <- switch(pt, func_cog = "COG", func_kegg = "KEGG", func_pfam = "PFAM")
-
     counts <- if (!is.null(sqm_data())) {
       available_func_counts(sqm_data(), fun_level)
     } else {
       c("Copy number (copy_number)" = "copy_number")
     }
-
     selectInput("func_count", NULL, choices = counts,
       selected = if ("copy_number" %in% counts) "copy_number" else counts[[1]])
   })
-
   # ─────────────────────────────────────────
   #  Generate plot
   # ─────────────────────────────────────────
@@ -834,14 +935,10 @@ server <- function(input, output, session) {
     req(sqm_data())
     proj <- sqm_data()
     pt   <- input$plot_type
-
     if (pt == "taxonomy_bar") {
       search_text <- if (is_sqm_full()) trimws(input$tax_search %||% "") else ""
-
       if (nchar(search_text) > 0) {
-        # ── Search mode: subsetTax + plotTaxonomy ──
         rank <- input$tax_rank %||% "phylum"
-
         all_taxa <- tryCatch(
           rownames(proj$taxa[[rank]]$abund),
           error = function(e) character(0)
@@ -851,7 +948,6 @@ server <- function(input, output, session) {
         matched <- unique(unlist(lapply(terms, function(t)
           all_taxa[grepl(t, all_taxa, ignore.case = TRUE)]
         )))
-
         if (length(matched) == 0) {
           showNotification(
             paste0("No taxa found matching: \"", search_text, "\""),
@@ -859,49 +955,36 @@ server <- function(input, output, session) {
           )
           return(NULL)
         }
-
         proj_sub <- tryCatch(
           subsetTax(proj, rank = rank, tax = matched),
           error = function(e) NULL
         )
-
         if (is.null(proj_sub)) {
           showNotification("subsetTax failed for the selected taxa.", type = "error", duration = 5)
           return(NULL)
         }
-
         plotTaxonomy(proj_sub, rank = rank, count = input$tax_count,
                      N = input$n_taxa, base_size = input$tax_base_size %||% 11)
-
       } else {
-        # ── Top N mode ──
         plotTaxonomy(proj, rank = input$tax_rank, count = input$tax_count,
                      N = input$n_taxa, base_size = input$tax_base_size %||% 11)
       }
-
     } else if (pt %in% c("func_cog", "func_kegg", "func_pfam")) {
-
       fun_level <- switch(pt,
         func_cog  = "COG",
         func_kegg = "KEGG",
         func_pfam = "PFAM"
       )
-
       search_text <- if (is_sqm_full()) trimws(input$func_search %||% "") else ""
-
       if (nchar(search_text) > 0) {
-        # ── Search mode: subsetFun + plotFunctions ──
-        pattern <- build_func_pattern(search_text)
-
+        pattern  <- build_func_pattern(search_text)
         proj_sub <- tryCatch(
           subsetFun(proj, fun = pattern, ignore_case = TRUE, fixed = FALSE),
           error = function(e) NULL
         )
-
         n_matches <- if (!is.null(proj_sub)) {
           tryCatch(nrow(proj_sub$functions[[fun_level]]$abund), error = function(e) 0L)
         } else 0L
-
         if (n_matches == 0) {
           showNotification(
             paste0("No ", fun_level, " functions found matching: \"", search_text, "\""),
@@ -909,21 +992,17 @@ server <- function(input, output, session) {
           )
           return(NULL)
         }
-
-        plotFunctions(proj_sub, fun_level = fun_level, count = input$func_count, N = input$n_funcs, base_size = input$func_base_size %||% 11)
-
+        plotFunctions(proj_sub, fun_level = fun_level, count = input$func_count,
+                      N = input$n_funcs, base_size = input$func_base_size %||% 11)
       } else {
-        # ── Top N mode ──
-        plotFunctions(proj, fun_level = fun_level, count = input$func_count, N = input$n_funcs, base_size = input$func_base_size %||% 11)
+        plotFunctions(proj, fun_level = fun_level, count = input$func_count,
+                      N = input$n_funcs, base_size = input$func_base_size %||% 11)
       }
-
     } else if (pt == "bins") {
       plotBins(proj)
     }
   })
-
   output$sqm_plot <- renderPlot({ plot_reactive() }, bg = "#ffffff")
-
   output$plot_status_badge <- renderUI({
     if (is.null(sqm_data())) {
       tags$span(class = "badge",
@@ -935,7 +1014,6 @@ server <- function(input, output, session) {
         "● Ready")
     }
   })
-
   output$download_plot <- downloadHandler(
     filename = function() paste0("sqm_plot_", Sys.Date(), ".png"),
     content  = function(file) {
@@ -944,7 +1022,6 @@ server <- function(input, output, session) {
       dev.off()
     }
   )
-
   # ── Sample filter ─────────────────────────
   output$table_sample_filter <- renderUI({
     req(sqm_data())
@@ -952,14 +1029,12 @@ server <- function(input, output, session) {
     req(samples)
     checkboxGroupInput("selected_samples", NULL, choices = samples, selected = samples)
   })
-
   # ── Table data ────────────────────────────
   get_table_data <- reactive({
     req(sqm_data())
     proj <- sqm_data()
     tt   <- input$table_type
     smp  <- input$selected_samples
-
     tryCatch({
       if      (tt == "contigs")    as.data.frame(proj$contigs$table)
       else if (tt == "orfs")       as.data.frame(proj$orfs$table)
@@ -981,7 +1056,6 @@ server <- function(input, output, session) {
       }
     }, error = function(e) NULL)
   })
-
   output$data_table <- renderDT({
     df <- get_table_data()
     req(df)
@@ -990,7 +1064,6 @@ server <- function(input, output, session) {
       class = "compact hover stripe"
     )
   })
-
   output$download_table <- downloadHandler(
     filename = function() paste0("sqm_", input$table_type, "_", Sys.Date(), ".csv"),
     content  = function(file) {
@@ -1000,5 +1073,4 @@ server <- function(input, output, session) {
     }
   )
 }
-
 shinyApp(ui = ui, server = server)
