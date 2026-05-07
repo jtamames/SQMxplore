@@ -4310,99 +4310,56 @@ server <- function(input, output, session) {
 
   # ---- Helper: extract KOs for a bin --------------------------------------
   get_bin_kos <- function(proj, bin_name) {
-    # ── Strategy 1: use proj$orfs$table ──────────────────────────────────────
-    # The orf table has one row per ORF. We need:
-    #   (a) a column linking the ORF to a bin (directly or via contig)
-    #   (b) a column with the KEGG KO assignment
+    # Extract KO identifiers for a given bin.
     #
-    # Column names vary across SQM versions:
-    #   KEGG column: "KEGG ID", "KEGG", "KEGGid", "ko", ...
-    #   Contig col:  "Contig ID", "Contig", "contig", ...
-    #   Bin col:     "Bin ID", "Bin", "bin", ...  (may be in orf table directly)
+    # SQM stores KOs in proj$orfs$table[["KEGG ID"]] (one KO per ORF row).
+    # Values may carry a trailing asterisk (e.g. "K21573*") which must be
+    # stripped before validation.  Bins are not in the ORF table directly;
+    # the link is:  ORF -> "Contig ID"  and  contig -> "Bin ID" in contigs$table.
 
-    orf_tbl <- tryCatch(proj$orfs$table, error = function(e) NULL)
-    ctg_tbl <- tryCatch(proj$contigs$table, error = function(e) NULL)
+    orf_tbl <- tryCatch(proj$orfs$table,     error = function(e) NULL)
+    ctg_tbl <- tryCatch(proj$contigs$table,  error = function(e) NULL)
+    if (is.null(orf_tbl) || is.null(ctg_tbl)) return(character(0))
 
-    # Find KEGG column dynamically (same logic as the rest of the app)
-    find_col <- function(tbl, patterns) {
-      if (is.null(tbl)) return(NULL)
-      for (p in patterns) {
-        m <- grep(p, colnames(tbl), ignore.case = TRUE, value = TRUE)
-        if (length(m) > 0) return(m[1])
-      }
-      NULL
+    # -- 1. Find which contigs belong to this bin ------------------------------
+    # "Bin ID" column in contigs$table (exact name from SQM)
+    bin_col <- grep("^Bin ID$", colnames(ctg_tbl), value = TRUE)[1]
+    if (is.na(bin_col)) bin_col <- grep("\\bbin\\b", colnames(ctg_tbl),
+                                        ignore.case = TRUE, value = TRUE)[1]
+    if (is.na(bin_col) || is.null(bin_col)) return(character(0))
+
+    bin_ids  <- as.character(ctg_tbl[[bin_col]])
+    mask_ctg <- bin_ids == bin_name
+    # also try stripping common suffixes (.fa.contigs, .fa.sub.contigs)
+    if (!any(mask_ctg, na.rm = TRUE)) {
+      stripped <- sub("\\.fa(\\.sub)?\\.contigs$", "", bin_name)
+      mask_ctg <- bin_ids == stripped
     }
+    bin_contigs <- rownames(ctg_tbl)[mask_ctg & !is.na(mask_ctg)]
+    if (length(bin_contigs) == 0) return(character(0))
 
-    ko_col_orf <- find_col(orf_tbl, c("KEGG", "ko\\b", "KO\\b", "kegg_id", "kegg.id"))
+    # -- 2. Find ORFs on those contigs -----------------------------------------
+    ctg_col <- grep("^Contig ID$", colnames(orf_tbl), value = TRUE)[1]
+    if (is.na(ctg_col)) ctg_col <- grep("\\bcontig\\b", colnames(orf_tbl),
+                                         ignore.case = TRUE, value = TRUE)[1]
+    if (is.na(ctg_col) || is.null(ctg_col)) return(character(0))
 
-    # ── Try path A: orf table has a Bin ID column directly ───────────────────
-    bin_col_orf <- find_col(orf_tbl, c("^Bin ID$", "^Bin$", "\\bbin\\b"))
-    if (!is.null(orf_tbl) && !is.null(ko_col_orf) && !is.null(bin_col_orf)) {
-      bin_ids_orf <- as.character(orf_tbl[[bin_col_orf]])
-      # try exact match first, then strip suffix
-      mask <- bin_ids_orf == bin_name
-      if (!any(mask, na.rm = TRUE)) {
-        stripped <- sub("\\.fa(\\.sub)?\\.contigs$", "", bin_name)
-        mask <- bin_ids_orf == stripped
-      }
-      if (any(mask, na.rm = TRUE)) {
-        kos_raw <- as.character(orf_tbl[[ko_col_orf]][mask])
-        # Each cell may be "K00001" or "K00001,K00002" or "K00001;K00002"
-        kos <- unlist(strsplit(kos_raw, "[,;[:space:]]+"))
-        kos <- unique(kos[grepl("^K\\d{5}$", kos)])
-        if (length(kos) > 0) return(kos)
-      }
-    }
+    orf_rows <- orf_tbl[as.character(orf_tbl[[ctg_col]]) %in% bin_contigs, ,
+                        drop = FALSE]
+    if (nrow(orf_rows) == 0) return(character(0))
 
-    # ── Try path B: link via contig table ────────────────────────────────────
-    if (!is.null(ctg_tbl)) {
-      bin_col_ctg <- find_col(ctg_tbl, c("^Bin ID$", "^Bin$", "\\bbin\\b"))
-      if (!is.null(bin_col_ctg)) {
-        bin_ids_ctg <- as.character(ctg_tbl[[bin_col_ctg]])
-        mask_ctg <- bin_ids_ctg == bin_name
-        if (!any(mask_ctg, na.rm = TRUE)) {
-          stripped <- sub("\\.fa(\\.sub)?\\.contigs$", "", bin_name)
-          mask_ctg <- bin_ids_ctg == stripped
-        }
-        bin_contigs <- rownames(ctg_tbl)[mask_ctg & !is.na(mask_ctg)]
+    # -- 3. Extract KO identifiers ---------------------------------------------
+    # Column is "KEGG ID"; values may be "K00001", "K00001*", NA, "-", etc.
+    ko_col <- grep("^KEGG ID$", colnames(orf_tbl), value = TRUE)[1]
+    if (is.na(ko_col)) ko_col <- grep("^KEGG$", colnames(orf_tbl),
+                                       ignore.case = TRUE, value = TRUE)[1]
+    if (is.na(ko_col) || is.null(ko_col)) return(character(0))
 
-        if (length(bin_contigs) > 0 && !is.null(orf_tbl) && !is.null(ko_col_orf)) {
-          ctg_col_orf <- find_col(orf_tbl, c("^Contig ID$", "^Contig$", "\\bcontig\\b"))
-          if (!is.null(ctg_col_orf)) {
-            orf_ctgs <- as.character(orf_tbl[[ctg_col_orf]])
-            rows <- orf_tbl[orf_ctgs %in% bin_contigs, , drop = FALSE]
-            kos_raw <- as.character(rows[[ko_col_orf]])
-            kos <- unlist(strsplit(kos_raw, "[,;[:space:]]+"))
-            kos <- unique(kos[grepl("^K\\d{5}$", kos)])
-            if (length(kos) > 0) return(kos)
-          }
-        }
-      }
-    }
-
-    # ── Try path C: use proj$functions[[KEGG]]$abund filtered by bin contigs ─
-    # proj$functions$KEGG$abund rows=KOs, cols=samples — but this is per-sample,
-    # not per-bin. Skip unless we can subset by bin.
-
-    # ── Try path D: use SQMtools subsetBins if available ─────────────────────
-    if (exists("subsetBins", mode = "function")) {
-      bin_proj <- tryCatch(subsetBins(proj, bin_name), error = function(e) NULL)
-      if (!is.null(bin_proj)) {
-        kegg_db <- tryCatch(
-          names(bin_proj$functions)[toupper(names(bin_proj$functions)) == "KEGG"][1],
-          error = function(e) NULL)
-        if (!is.null(kegg_db)) {
-          abund <- tryCatch(bin_proj$functions[[kegg_db]]$abund, error = function(e) NULL)
-          if (!is.null(abund)) {
-            kos <- rownames(abund)[rowSums(abund, na.rm = TRUE) > 0]
-            kos <- unique(kos[grepl("^K\\d{5}$", kos)])
-            if (length(kos) > 0) return(kos)
-          }
-        }
-      }
-    }
-
-    character(0)
+    kos_raw <- as.character(orf_rows[[ko_col]])
+    kos <- unlist(strsplit(kos_raw, "[,;[:space:]]+"))
+    kos <- sub("\\*+$", "", kos)        # strip trailing asterisk(s)
+    kos <- unique(kos[grepl("^K\\d{5}$", kos)])
+    kos
   }
 
   # ---- Category definitions: explicit curated KO lists + rect coords --------
@@ -4781,15 +4738,9 @@ server <- function(input, output, session) {
             else NULL
 
     # SVG defs: drop-shadow for text legibility
-    svg_defs <- paste0(
-      '<defs>',
-      '<filter id="magmap-shadow" x="-30%" y="-30%" width="160%" height="160%">',
-      '<feDropShadow dx="0" dy="0" stdDeviation="1.2" ',
-      'flood-color="rgba(0,0,0,0.9)" flood-opacity="1"/>',
-      '</filter>',
-      '</defs>')
+    svg_defs <- '<defs></defs>'
 
-    # Build SVG elements: coloured rect + centred % text for each category
+    # Build SVG elements: progress-bar fill + black bold % text at top
     svg_elements <- ""
     if (!is.null(comp)) {
       svg_elements <- paste(mapply(function(cat_name, cat_info, cat_comp) {
@@ -4798,13 +4749,7 @@ server <- function(input, output, session) {
         pres <- cat_comp$present
         tot  <- cat_comp$total
 
-        # Fill colour by completeness level
-        fill_col <- if (is.na(pct))       "160,160,160"
-                    else if (pct < 25)    "70,130,220"
-                    else if (pct < 50)    "60,180,130"
-                    else if (pct < 75)    "230,170,30"
-                    else                  "220,60,40"
-        fill_op  <- if (is.na(pct)) 0.12 else 0.10 + 0.60 * (pct / 100)
+        fill_col <- "70,130,220"   # single colour for all bars
 
         label    <- if (is.na(pct)) "N/A" else paste0(round(pct), "%")
         tip      <- htmltools::htmlEscape(
@@ -4816,25 +4761,42 @@ server <- function(input, output, session) {
         x0 <- r[1] * 100; y0 <- r[2] * 100
         w  <- (r[3] - r[1]) * 100; h <- (r[4] - r[2]) * 100
         cx <- (r[1] + r[3]) / 2 * 100
-        cy <- (r[2] + r[4]) / 2 * 100
+
+        # Progress bar width proportional to pct
+        fill_w <- if (is.na(pct)) 0 else w * (pct / 100)
+
+        # clip-path id (alphanumeric only)
+        cp_id <- paste0("cp_", gsub("[^A-Za-z0-9]", "_", cat_name))
+
+        # Label flush with top border
+        ty <- y0 + 0.15
 
         paste0(
-          # Coloured rectangle
-          sprintf('<rect class="magmap-cat"'),
+          # Clip path so progress bar respects rounded corners
+          if (fill_w > 0) sprintf(
+            '<clipPath id="%s"><rect x="%.3f" y="%.3f" width="%.3f" height="%.3f" rx="0.8" ry="0.8"/></clipPath>\n',
+            cp_id, x0, y0, w, h) else "",
+
+          # Progress bar fill
+          if (fill_w > 0) sprintf(
+            '<rect x="%.3f" y="%.3f" width="%.3f" height="%.3f" fill="rgba(%s,0.45)" clip-path="url(#%s)" data-cat="%s" data-tip="%s"/>\n',
+            x0, y0, fill_w, h, fill_col, cp_id, htmltools::htmlEscape(cat_name, attribute=TRUE), tip) else "",
+
+          # Box outline (no fill)
+          sprintf('<rect class="magmap-cat" data-cat="%s"', htmltools::htmlEscape(cat_name, attribute=TRUE)),
           sprintf(' x="%.3f" y="%.3f" width="%.3f" height="%.3f"', x0, y0, w, h),
-          sprintf(' fill="rgba(%s,%.3f)"', fill_col, fill_op),
-          sprintf(' stroke="rgba(%s,0.75)" stroke-width="0.3"', fill_col),
+          ' fill="transparent"'  ,
+          sprintf(' stroke="rgba(%s,0.85)" stroke-width="0.35"', fill_col),
           ' rx="0.8" ry="0.8"',
           sprintf(' data-tip="%s"/>\n', tip),
 
-          # Percentage text label centred on the box
-          sprintf('<text class="magmap-label"'),
-          sprintf(' x="%.3f" y="%.3f"', cx, cy),
-          ' dominant-baseline="central" text-anchor="middle"',
+          # % label: black, bold, small, flush top
+          sprintf('<text class="magmap-label" data-cat="%s"', htmltools::htmlEscape(cat_name, attribute=TRUE)),
+          sprintf(' x="%.3f" y="%.3f"', cx, ty),
+          ' dominant-baseline="hanging" text-anchor="middle"',
           ' font-family="Arial,sans-serif" font-weight="bold"',
-          ' font-size="2.2"',
-          ' fill="white"',
-          ' filter="url(#magmap-shadow)"',
+          ' font-size="1.7"',
+          ' fill="black"',
           sprintf(' data-tip="%s">', tip),
           label,
           '</text>\n'
@@ -4843,7 +4805,7 @@ server <- function(input, output, session) {
       collapse = "")
     }
 
-    # Tooltip JS
+    # Tooltip + click JS
     tooltip_js <- "
 (function() {
   var tip = document.getElementById('magmap-tooltip');
@@ -4859,8 +4821,8 @@ server <- function(input, output, session) {
   }
   var svg = document.getElementById('magmap-svg-overlay');
   if (!svg) return;
-  svg.querySelectorAll('.magmap-cat,.magmap-label').forEach(function(el) {
-    el.style.cursor = 'default';
+  svg.querySelectorAll('[data-cat]').forEach(function(el) {
+    el.style.cursor = 'pointer';
     el.addEventListener('mouseenter', function() {
       tip.textContent = el.getAttribute('data-tip'); tip.style.display = 'block';
     });
@@ -4869,6 +4831,11 @@ server <- function(input, output, session) {
       tip.style.top  = (e.clientY - 36) + 'px';
     });
     el.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
+    el.addEventListener('click', function() {
+      var cat = el.getAttribute('data-cat');
+      if (cat && typeof Shiny !== 'undefined')
+        Shiny.setInputValue('magmap_clicked_cat', cat, {priority: 'event'});
+    });
   });
 })();
 "
@@ -4892,6 +4859,155 @@ server <- function(input, output, session) {
       tags$script(HTML(tooltip_js))
     )
   })
+
+  # ── MAG Map: clicked category → KO detail table ─────────────────────────────
+
+  magmap_clicked_cat <- reactiveVal(NULL)
+
+  observeEvent(input$magmap_clicked_cat, {
+    v <- input$magmap_clicked_cat
+    magmap_clicked_cat(if (!is.null(v) && nzchar(v)) v else NULL)
+  })
+
+  output$magmap_detail_ui <- renderUI({
+    cat_name <- magmap_clicked_cat()
+    if (is.null(cat_name)) return(NULL)
+
+    bin <- magmap_selected_bin()
+    if (is.null(bin)) return(NULL)
+
+    proj <- sqm_data()
+    if (is.null(proj)) return(NULL)
+
+    # KOs present in this MAG
+    mag_kos <- tryCatch(get_bin_kos(proj, bin), error = function(e) character(0))
+
+    # Find the matching category key (cat_name from JS has \n replaced by space)
+    cat_key <- names(MAG_MAP_CATEGORIES)[
+      vapply(names(MAG_MAP_CATEGORIES), function(n) {
+        identical(n, cat_name) ||
+        identical(gsub("\n", " ", n), cat_name) ||
+        identical(gsub("\n", "\\n", n), cat_name)
+      }, logical(1))
+    ]
+    if (length(cat_key) == 0) return(NULL)
+    cat_kos <- unique(MAG_MAP_CATEGORIES[[cat_key[1]]]$kos)
+
+    # KO name + path lookup
+    # Source 1: proj$functions$KEGG$names — data.frame, rownames=KO, cols: Name, Path
+    # Source 2: proj$misc$KEGG_names — named vector KO->name (fallback for names only)
+    # Source 3: parse KEGGPATH from orf table (fallback for paths)
+    ko_names_df <- tryCatch({
+      df <- proj$functions$KEGG$names
+      if (is.data.frame(df) && nrow(df) > 0) df else NULL
+    }, error = function(e) NULL)
+
+    misc_names <- tryCatch(proj$misc$KEGG_names, error = function(e) NULL)
+
+    # Helper: get name for a KO
+    ko_name_fn <- function(ko) {
+      if (!is.null(ko_names_df) && ko %in% rownames(ko_names_df))
+        return(as.character(ko_names_df[ko, "Name"]))
+      if (!is.null(misc_names) && ko %in% names(misc_names))
+        return(as.character(misc_names[[ko]]))
+      ""
+    }
+
+    # Helper: get L3 pathways for a KO
+    # Path column format: "L1; L2; L3 | L1; L2; L3 | ..."
+    ko_l3_fn <- function(ko) {
+      path_raw <- NA_character_
+      if (!is.null(ko_names_df) && ko %in% rownames(ko_names_df))
+        path_raw <- as.character(ko_names_df[ko, "Path"])
+      if (is.na(path_raw) || !nzchar(path_raw)) return(character(0))
+      blocks <- strsplit(path_raw, " | ", fixed = TRUE)[[1]]
+      l3 <- unique(vapply(blocks, function(b) {
+        parts <- strsplit(trimws(b), "; ", fixed = TRUE)[[1]]
+        if (length(parts) >= 3) trimws(parts[[3]]) else NA_character_
+      }, character(1)))
+      l3[!is.na(l3) & nzchar(l3)]
+    }
+
+    # Build per-KO rows
+    rows <- lapply(cat_kos, function(ko) {
+      list(
+        ko      = ko,
+        name    = ko_name_fn(ko),
+        l3      = ko_l3_fn(ko),
+        present = ko %in% mag_kos
+      )
+    })
+
+    # Collect all L3s, sort (real pathways first)
+    all_l3 <- sort(unique(unlist(lapply(rows, `[[`, "l3"))))
+    no_path <- vapply(rows, function(r) length(r$l3) == 0, logical(1))
+    has_unassigned <- any(no_path)
+
+    cat_display <- gsub("\n", " ", cat_key[1])
+    n_present   <- sum(vapply(rows, `[[`, logical(1), "present"))
+    n_total     <- length(rows)
+
+    # Build grouped HTML
+    make_ko_row <- function(r) {
+      icon  <- if (r$present) "✓" else "✗"
+      color <- if (r$present) "#1a7a3a" else "#c0392b"
+      bg    <- if (r$present) "#f0fff4" else "#fff5f5"
+      sprintf(
+        '<tr style="background:%s;">
+          <td style="padding:3px 8px 3px 22px;font-family:monospace;font-size:0.8rem;white-space:nowrap;width:80px;">%s</td>
+          <td style="padding:3px 8px;font-size:0.79rem;">%s</td>
+          <td style="padding:3px 12px;text-align:center;font-size:1rem;color:%s;width:40px;">%s</td>
+        </tr>',
+        bg,
+        htmltools::htmlEscape(r$ko),
+        htmltools::htmlEscape(r$name),
+        color, icon)
+    }
+
+    make_l3_header <- function(label) sprintf(
+      '<tr style="background:#e8edf5;"><td colspan="3" style="padding:5px 8px;font-weight:600;font-size:0.81rem;color:#1a3a6b;letter-spacing:0.01em;">%s</td></tr>',
+      htmltools::htmlEscape(label))
+
+    tbl_html <- ""
+    for (l3 in all_l3) {
+      grp <- Filter(function(r) l3 %in% r$l3, rows)
+      if (length(grp) == 0) next
+      tbl_html <- paste0(tbl_html, make_l3_header(l3),
+                         paste(vapply(grp, make_ko_row, character(1)), collapse = ""))
+    }
+    if (has_unassigned) {
+      grp <- rows[no_path]
+      tbl_html <- paste0(tbl_html, make_l3_header("(no pathway assigned)"),
+                         paste(vapply(grp, make_ko_row, character(1)), collapse = ""))
+    }
+
+    card(
+      style = "margin-top:12px;",
+      card_header(
+        tags$span(style = "font-weight:600;", cat_display),
+        tags$span(style = "margin-left:12px; font-size:0.82rem; color:var(--muted);",
+          sprintf("%d / %d KOs present (%.0f%%)", n_present, n_total,
+                  100 * n_present / max(n_total, 1)))
+      ),
+      card_body(class = "p-0",
+        tags$div(
+          style = "max-height:380px; overflow-y:auto;",
+          tags$table(
+            style = "width:100%; border-collapse:collapse;",
+            tags$thead(
+              tags$tr(style = "background:#d0d8ea; position:sticky; top:0; z-index:1;",
+                tags$th(style = "padding:5px 8px 5px 22px; text-align:left; font-size:0.81rem;", "KO"),
+                tags$th(style = "padding:5px 8px; text-align:left; font-size:0.81rem;", "Name"),
+                tags$th(style = "padding:5px 12px; text-align:center; font-size:0.81rem; width:40px;", "Present")
+              )
+            ),
+            tags$tbody(HTML(tbl_html))
+          )
+        )
+      )
+    )
+  })
+
 
   # get_bin_kos() is defined earlier in this server scope — no duplication needed.
 
