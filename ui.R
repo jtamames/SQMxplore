@@ -442,16 +442,18 @@ nav_panel("Load",
             "Red overlay opacity = % KEGG completeness per category")
         )
       ),
-      card(
-        card_header(
-          help_label("Metabolic Map",
-            "The diagram shows major metabolic categories. Red overlays indicate the completeness of each category based on KEGG KOs present in the selected MAG. Hover for details.")
+      tags$div(
+        card(
+          card_header(
+            help_label("Metabolic Map",
+              "The diagram shows major metabolic categories. Blue bar overlay indicates the completeness of each category based on KEGG KOs present in the selected MAG. Hover for details, click a category to see KO detail below.")
+          ),
+          card_body(class = "p-2",
+            uiOutput("magmap_view_ui")
+          )
         ),
-        card_body(class = "p-2",
-          uiOutput("magmap_view_ui")
-        )
-      ),
-      uiOutput("magmap_detail_ui")
+        uiOutput("magmap_detail_ui")
+      )
     )
   ),
   nav_panel("About",
