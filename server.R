@@ -4370,7 +4370,7 @@ server <- function(input, output, session) {
 
     # Central Carbon Metabolism
     "Glycolysis" = list(
-      rect = c(0.1146, 0.1494, 0.2995, 0.2246),
+      rect = c(0.1190, 0.1478, 0.2584, 0.2259),
       kos  = c("K00844","K12407","K00845","K25026",
                "K01810","K06859","K13810","K15916",
                "K00850","K16370","K21071","K00918",
@@ -4381,17 +4381,17 @@ server <- function(input, output, session) {
                "K01596","K01610","K00016")
     ),
     "Pentose Phosphate\nPathway" = list(
-      rect = c(0.1146, 0.2500, 0.3034, 0.3252),
+      rect = c(0.1190, 0.2440, 0.2584, 0.3290),
       kos  = c("K00036","K01057","K07404","K00033",
                "K01807","K01808","K01783",
                "K00615","K00616","K00622")
     ),
     "Entner-Doudoroff\nPathway" = list(
-      rect = c(0.1139, 0.3574, 0.2949, 0.4316),
+      rect = c(0.1190, 0.3457, 0.2584, 0.4310),
       kos  = c("K00036","K01057","K00033","K01690","K01625")
     ),
     "TCA Cycle" = list(
-      rect = c(0.2480, 0.2246, 0.4167, 0.4316),
+      rect = c(0.2950, 0.2189, 0.3829, 0.3639),
       kos  = c("K00163","K00161","K00162","K00627","K00382",
                "K01647","K01648","K01681","K01682",
                "K00031","K00030","K00164","K00658",
@@ -4402,7 +4402,7 @@ server <- function(input, output, session) {
                "K01637","K01638")
     ),
     "CO2 Fixation" = list(
-      rect = c(0.3971, 0.1494, 0.5195, 0.2246),
+      rect = c(0.3968, 0.1506, 0.5139, 0.2286),
       kos  = c("K01601","K01602","K00855",
                "K00197","K00194","K15022",
                "K01938","K01491","K00297",
@@ -4412,7 +4412,7 @@ server <- function(input, output, session) {
                "K01647","K15230","K15231")
     ),
     "Fermentation" = list(
-      rect = c(0.4167, 0.3574, 0.5195, 0.4316),
+      rect = c(0.3968, 0.3471, 0.5149, 0.4294),
       kos  = c("K01568","K13979","K04072","K00001","K00121",
                "K00656","K00625","K00925",
                "K00016","K03777","K01613",
@@ -4422,7 +4422,7 @@ server <- function(input, output, session) {
 
     # N, S and CH4 Metabolism
     "Nitrogen\nFixation" = list(
-      rect = c(0.5560, 0.1494, 0.7129, 0.2246),
+      rect = c(0.5511, 0.1520, 0.6980, 0.2300),
       kos  = c("K02588","K02586","K02591",
                "K02585","K02587","K02592","K02589",
                "K02593","K02594","K02595","K02596",
@@ -4430,7 +4430,7 @@ server <- function(input, output, session) {
                "K00531","K22896","K22897")
     ),
     "Assimilatory N" = list(
-      rect = c(0.7526, 0.1494, 0.8913, 0.2246),
+      rect = c(0.7333, 0.1520, 0.8625, 0.2300),
       kos  = c("K01915","K01914",
                "K00264","K00265","K00266",
                "K00261","K00262","K00263",
@@ -4439,13 +4439,13 @@ server <- function(input, output, session) {
                "K02575","K02576","K02577","K02578")
     ),
     "Denitrification" = list(
-      rect = c(0.5560, 0.2500, 0.7122, 0.3252),
+      rect = c(0.5500, 0.2496, 0.6980, 0.3262),
       kos  = c("K00370","K00371","K00374",
                "K02567","K02568","K00376",
                "K02305","K04561","K00368","K15864")
     ),
     "Sulfur Cycle" = list(
-      rect = c(0.7526, 0.2500, 0.8913, 0.3252),
+      rect = c(0.7342, 0.2496, 0.8625, 0.3262),
       kos  = c("K00958","K00394","K00395",
                "K11180","K11181",
                "K17224","K17225","K17226","K17227","K17228","K17229",
@@ -4454,12 +4454,12 @@ server <- function(input, output, session) {
                "K00380","K00381","K01738")
     ),
     "Nitrification" = list(
-      rect = c(0.5560, 0.3574, 0.7129, 0.4316),
+      rect = c(0.5493, 0.3457, 0.6980, 0.4255),
       kos  = c("K10944","K10945","K10946","K10535",
                "K00370","K00371","K20932","K20935")
     ),
     "Methane\nMetabolism" = list(
-      rect = c(0.7526, 0.3574, 0.8926, 0.4316),
+      rect = c(0.7342, 0.3471, 0.8699, 0.4255),
       kos  = c("K00399","K00401","K00402",
                "K03421","K03422","K03423","K03424","K03388","K03390","K03391",
                "K00205","K00319","K04480",
@@ -4473,7 +4473,7 @@ server <- function(input, output, session) {
 
     # Biosynthesis / Anabolism
     "Amino Acids" = list(
-      rect = c(0.1120, 0.5127, 0.2337, 0.5859),
+      rect = c(0.1301, 0.5115, 0.2444, 0.5897),
       kos  = c("K01915","K00265","K00266","K00261","K00262","K01940","K00811","K00812","K00813",
                "K00928","K00133","K01714","K01778","K00003","K00872","K01733","K01697",
                "K00600","K00831","K01079","K00604","K00605",
@@ -4485,7 +4485,7 @@ server <- function(input, output, session) {
                "K00548","K01760","K00549","K01738","K01739")
     ),
     "Nucleotides" = list(
-      rect = c(0.2578, 0.5127, 0.3809, 0.5859),
+      rect = c(0.2704, 0.5115, 0.3950, 0.5897),
       kos  = c("K00764","K01945","K01944","K01923","K01924",
                "K00602","K01492","K01756",
                "K01951","K00088","K00942",
@@ -4494,7 +4494,7 @@ server <- function(input, output, session) {
                "K00525","K00549","K01495")
     ),
     "Vitamins /\nCofactors" = list(
-      rect = c(0.4062, 0.5127, 0.4876, 0.7070),
+      rect = c(0.4165, 0.5563, 0.4926, 0.6483),
       kos  = c("K00941","K00788","K00946","K00949","K03148","K03149","K03151",
                "K00793","K01497","K00794","K02794","K02793",
                "K06215","K06214","K00763","K01556","K00815","K01580",
@@ -4507,7 +4507,7 @@ server <- function(input, output, session) {
                "K00568","K00667","K03183","K03187","K02548","K02549","K01661","K02551","K02550")
     ),
     "Fatty Acids" = list(
-      rect = c(0.1120, 0.5859, 0.2585, 0.7070),
+      rect = c(0.1301, 0.6120, 0.2444, 0.6901),
       kos  = c("K00648","K11533","K00647",
                "K00059","K01703","K01704",
                "K00208","K09458","K00645",
@@ -4517,7 +4517,7 @@ server <- function(input, output, session) {
                "K00981","K02517","K00965","K01448")
     ),
     "Cell Wall" = list(
-      rect = c(0.2578, 0.5859, 0.3809, 0.7070),
+      rect = c(0.2704, 0.6120, 0.3950, 0.6901),
       kos  = c("K01921","K00075","K01914","K00286","K01919","K01920","K01498",
                "K03469","K01778","K06078","K06079",
                "K05363","K03587","K03588","K03589",
@@ -4531,7 +4531,7 @@ server <- function(input, output, session) {
 
     # Respiration / Energy
     "ETC" = list(
-      rect = c(0.5306, 0.5127, 0.7441, 0.5859),
+      rect = c(0.5288, 0.5019, 0.6952, 0.5780),
       kos  = c("K00330","K00331","K00332","K00333","K00334","K00335","K00336",
                "K00337","K00338","K00339","K00340","K00341","K00342","K00343",
                "K00239","K00240","K00241","K00242",
@@ -4541,13 +4541,13 @@ server <- function(input, output, session) {
                "K02548","K03186","K03187")
     ),
     "ATP Synthase" = list(
-      rect = c(0.7441, 0.5127, 0.8861, 0.5859),
+      rect = c(0.7296, 0.5019, 0.8625, 0.5780),
       kos  = c("K02111","K02112","K02115","K02113","K02114",
                "K02108","K02109","K02110","K02116",
                "K02132","K02133","K02134")
     ),
     "Oxidative\nPhosphorylation" = list(
-      rect = c(0.5306, 0.5859, 0.7441, 0.6816),
+      rect = c(0.5288, 0.5995, 0.6952, 0.6761),
       kos  = c("K00330","K00331","K00332","K00333","K00334","K00335","K00336",
                "K00337","K00338","K00339","K00340","K00341","K00342","K00343",
                "K00239","K00240","K00241","K00242",
@@ -4558,7 +4558,7 @@ server <- function(input, output, session) {
                "K02108","K02109","K02110","K02116")
     ),
     "Anaerobic\nRespiration" = list(
-      rect = c(0.7441, 0.5859, 0.8854, 0.6816),
+      rect = c(0.7296, 0.5981, 0.8625, 0.6761),
       kos  = c("K00370","K00371","K00374",
                "K02567","K02568","K00368","K15864",
                "K02305","K04561","K00376",
@@ -4567,7 +4567,7 @@ server <- function(input, output, session) {
                "K07306","K07305","K03603","K04755","K02639")
     ),
     "Photosynthesis" = list(
-      rect = c(0.5306, 0.6816, 0.8854, 0.7598),
+      rect = c(0.5288, 0.6943, 0.8625, 0.7473),
       kos  = c("K02703","K02704","K02705","K02706","K02707","K02708",
                "K08905","K02689","K02690","K02691","K02692","K02693","K02694",
                "K02696","K02697","K02698","K02699","K02700","K02701","K02702",
@@ -4577,7 +4577,7 @@ server <- function(input, output, session) {
 
     # Transporters / Systems
     "ABC\nTransporters" = list(
-      rect = c(0.1276, 0.8223, 0.2441, 0.8906),
+      rect = c(0.1425, 0.8058, 0.2565, 0.8705),
       kos  = c("K06147","K06148","K06149",
                "K01998","K01999","K02000","K02001","K02002",
                "K10542","K10543","K10544","K10545","K10546",
@@ -4594,7 +4594,7 @@ server <- function(input, output, session) {
                "K10820","K10821","K10822","K12340","K12341")
     ),
     "Sec / Tat\nSystems" = list(
-      rect = c(0.2669, 0.8223, 0.3737, 0.8906),
+      rect = c(0.2723, 0.8072, 0.3783, 0.8705),
       kos  = c("K03070","K03071","K03072","K03073","K03074","K03075","K03076","K03077",
                "K03110","K03106","K03286",
                "K03522","K03523","K13771",
@@ -4603,14 +4603,14 @@ server <- function(input, output, session) {
                "K02459","K02460","K02461","K02462","K02463","K02464")
     ),
     "Efflux\nPumps" = list(
-      rect = c(0.3958, 0.8223, 0.4980, 0.8906),
+      rect = c(0.3935, 0.8072, 0.4963, 0.8705),
       kos  = c("K18138","K18139","K03585","K06147",
                "K18143","K18144","K08139","K03543","K08140",
                "K03380","K03327","K09687","K09688",
                "K02470","K13655","K07672","K19415")
     ),
     "Motility" = list(
-      rect = c(0.5195, 0.8223, 0.6159, 0.8906),
+      rect = c(0.5112, 0.8058, 0.6013, 0.8705),
       kos  = c("K02406","K02394",
                "K02387","K02388","K02389","K02390","K02391","K02392","K02393",
                "K02395","K02396","K02397","K02398","K02399","K02400","K02401",
@@ -4623,14 +4623,14 @@ server <- function(input, output, session) {
                "K03413","K03412","K02659","K02658")
     ),
     "CRISPR" = list(
-      rect = c(0.6400, 0.8223, 0.7344, 0.8906),
+      rect = c(0.6171, 0.8072, 0.7156, 0.8705),
       kos  = c("K19078","K19079",
                "K19080","K19081","K19082","K19083","K19084","K19085","K19086",
                "K19611","K19473","K21319",
                "K19088","K19089","K19090","K19091","K21572")
     ),
     "Stress\nResponse" = list(
-      rect = c(0.7546, 0.8223, 0.8737, 0.8906),
+      rect = c(0.7296, 0.8072, 0.8476, 0.8705),
       kos  = c("K03782","K03781","K00428","K00432",
                "K04564","K04565","K00562",
                "K00386","K03671","K04077","K04078",
@@ -4731,7 +4731,7 @@ server <- function(input, output, session) {
         pres <- cat_comp$present
         tot  <- cat_comp$total
 
-        fill_col <- "70,130,220"   # single colour for all bars
+        fill_col <- "220,40,40"   # red overlay for all bars
 
         label    <- if (is.na(pct)) "N/A" else paste0(round(pct), "%")
         tip      <- htmltools::htmlEscape(
@@ -4750,8 +4750,27 @@ server <- function(input, output, session) {
         # clip-path id (alphanumeric only)
         cp_id <- paste0("cp_", gsub("[^A-Za-z0-9]", "_", cat_name))
 
-        # Label flush with top border
-        ty <- y0 + 0.15
+        # Label position: default = above top-left corner of the box
+        # Exceptions:
+        #   Motility, ATP Synthase  → top-right (avoid overlap with other legends)
+        #   TCA Cycle               → top-center
+        label_pos <- "TL"
+        if (cat_name %in% c("Motility", "ATP Synthase")) label_pos <- "TR"
+        if (cat_name == "TCA Cycle")                    label_pos <- "TC"
+
+        if (label_pos == "TR") {
+          lx <- x0 + w
+          ty <- y0 - 0.3
+          anchor <- "end"
+        } else if (label_pos == "TC") {
+          lx <- cx
+          ty <- y0 - 0.3
+          anchor <- "middle"
+        } else {
+          lx <- x0
+          ty <- y0 - 0.3
+          anchor <- "start"
+        }
 
         paste0(
           # Clip path so progress bar respects rounded corners
@@ -4764,18 +4783,18 @@ server <- function(input, output, session) {
             '<rect x="%.3f" y="%.3f" width="%.3f" height="%.3f" fill="rgba(%s,0.45)" clip-path="url(#%s)" data-cat="%s" data-tip="%s"/>\n',
             x0, y0, fill_w, h, fill_col, cp_id, htmltools::htmlEscape(cat_name, attribute=TRUE), tip) else "",
 
-          # Box outline (no fill)
+          # Box outline removed (no stroke)
           sprintf('<rect class="magmap-cat" data-cat="%s"', htmltools::htmlEscape(cat_name, attribute=TRUE)),
           sprintf(' x="%.3f" y="%.3f" width="%.3f" height="%.3f"', x0, y0, w, h),
           ' fill="transparent"'  ,
-          sprintf(' stroke="rgba(%s,0.85)" stroke-width="0.35"', fill_col),
+          ' stroke="none"',
           ' rx="0.8" ry="0.8"',
           sprintf(' data-tip="%s"/>\n', tip),
 
-          # % label: black, bold, small, flush top
+          # % label: black, bold, positioned outside the top edge of the box
           sprintf('<text class="magmap-label" data-cat="%s"', htmltools::htmlEscape(cat_name, attribute=TRUE)),
-          sprintf(' x="%.3f" y="%.3f"', cx, ty),
-          ' dominant-baseline="hanging" text-anchor="middle"',
+          sprintf(' x="%.3f" y="%.3f"', lx, ty),
+          sprintf(' dominant-baseline="auto" text-anchor="%s"', anchor),
           ' font-family="Arial,sans-serif" font-weight="bold"',
           ' font-size="1.7"',
           ' fill="black"',
@@ -4801,6 +4820,12 @@ server <- function(input, output, session) {
       'box-shadow:0 3px 12px rgba(0,0,0,0.5);line-height:1.55;';
     document.body.appendChild(tip);
   }
+  // Clean up any leftover calibration UI from earlier sessions
+  var oldCoord = document.getElementById('magmap-coord-tip');
+  if (oldCoord) oldCoord.remove();
+  var oldPanel = document.getElementById('magmap-calib-panel');
+  if (oldPanel) oldPanel.remove();
+
   var svg = document.getElementById('magmap-svg-overlay');
   if (!svg) return;
   svg.querySelectorAll('[data-cat]').forEach(function(el) {
