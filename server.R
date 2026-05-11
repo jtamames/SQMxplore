@@ -4902,8 +4902,8 @@ server <- function(input, output, session) {
 
     # KO name + path lookup
     # Source 1: proj$functions$KEGG$names — data.frame, rownames=KO, cols: Name, Path
-    # Source 2: proj$misc$KEGG_names — named vector KO->name (fallback for names only)
-    # Source 3: parse KEGGPATH from orf table (fallback for paths)
+    # Source 2: proj$misc$KEGG_names — named vector KO->name
+    # Source 3: orfs table — KEGG ID / KEGGFUN columns (covers KOs not in source 1/2)
     ko_names_df <- tryCatch({
       df <- proj$functions$KEGG$names
       if (is.data.frame(df) && nrow(df) > 0) df else NULL
@@ -4911,14 +4911,56 @@ server <- function(input, output, session) {
 
     misc_names <- tryCatch(proj$misc$KEGG_names, error = function(e) NULL)
 
+    # Build KO -> name dictionary from ORF table as a 3rd fallback
+    orf_ko_names <- tryCatch({
+      ot <- proj$orfs$table
+      if (!is.null(ot) && all(c("KEGG ID", "KEGGFUN") %in% colnames(ot))) {
+        kos_raw  <- as.character(ot[, "KEGG ID"])
+        funs_raw <- as.character(ot[, "KEGGFUN"])
+        # Strip trailing "*" marker that SqueezeMeta sometimes adds
+        kos_clean <- sub("\\*+$", "", kos_raw)
+        keep <- !is.na(kos_clean) & nzchar(kos_clean) &
+                !is.na(funs_raw)  & nzchar(funs_raw)
+        if (any(keep)) {
+          dict <- tapply(funs_raw[keep], kos_clean[keep],
+                         function(v) v[which(nzchar(v))[1]])
+          dict
+        } else NULL
+      } else NULL
+    }, error = function(e) NULL)
+
     # Helper: get name for a KO
     ko_name_fn <- function(ko) {
-      if (!is.null(ko_names_df) && ko %in% rownames(ko_names_df))
-        return(as.character(ko_names_df[ko, "Name"]))
-      if (!is.null(misc_names) && ko %in% names(misc_names))
-        return(as.character(misc_names[[ko]]))
-      ""
+      if (!is.null(ko_names_df) && ko %in% rownames(ko_names_df)) {
+        nm <- as.character(ko_names_df[ko, "Name"])
+        if (!is.na(nm) && nzchar(nm)) return(nm)
+      }
+      if (!is.null(misc_names) && ko %in% names(misc_names)) {
+        nm <- as.character(misc_names[[ko]])
+        if (!is.na(nm) && nzchar(nm)) return(nm)
+      }
+      if (!is.null(orf_ko_names) && ko %in% names(orf_ko_names)) {
+        nm <- as.character(orf_ko_names[[ko]])
+        if (!is.na(nm) && nzchar(nm)) return(nm)
+      }
+      "(no annotation available)"
     }
+
+    # Build KO -> KEGGPATH dictionary from ORF table as a fallback for L3
+    orf_ko_paths <- tryCatch({
+      ot <- proj$orfs$table
+      if (!is.null(ot) && all(c("KEGG ID", "KEGGPATH") %in% colnames(ot))) {
+        kos_raw   <- as.character(ot[, "KEGG ID"])
+        paths_raw <- as.character(ot[, "KEGGPATH"])
+        kos_clean <- sub("\\*+$", "", kos_raw)
+        keep <- !is.na(kos_clean)   & nzchar(kos_clean) &
+                !is.na(paths_raw)   & nzchar(paths_raw)
+        if (any(keep)) {
+          tapply(paths_raw[keep], kos_clean[keep],
+                 function(v) v[which(nzchar(v))[1]])
+        } else NULL
+      } else NULL
+    }, error = function(e) NULL)
 
     # Helper: get L3 pathways for a KO
     # Path column format: "L1; L2; L3 | L1; L2; L3 | ..."
@@ -4926,6 +4968,9 @@ server <- function(input, output, session) {
       path_raw <- NA_character_
       if (!is.null(ko_names_df) && ko %in% rownames(ko_names_df))
         path_raw <- as.character(ko_names_df[ko, "Path"])
+      if ((is.na(path_raw) || !nzchar(path_raw)) &&
+          !is.null(orf_ko_paths) && ko %in% names(orf_ko_paths))
+        path_raw <- as.character(orf_ko_paths[[ko]])
       if (is.na(path_raw) || !nzchar(path_raw)) return(character(0))
       blocks <- strsplit(path_raw, " | ", fixed = TRUE)[[1]]
       l3 <- unique(vapply(blocks, function(b) {
@@ -4935,12 +4980,55 @@ server <- function(input, output, session) {
       l3[!is.na(l3) & nzchar(l3)]
     }
 
+    # Keywords that L3 names must match (case-insensitive regex) for each category.
+    # Used to filter the multi-pathway annotations down to those relevant to the
+    # clicked category. Use the category KEY (with \n) as-is.
+    CAT_PATH_FILTERS <- list(
+      "Glycolysis"                = "glycolysis|gluconeogenesis",
+      "Pentose Phosphate\nPathway"= "pentose phosphate",
+      "Entner-Doudoroff\nPathway" = "entner|pentose phosphate",
+      "TCA Cycle"                 = "citrate cycle|tca cycle|2-oxocarboxylic|carbon fixation",
+      "CO2 Fixation"              = "carbon fixation|calvin|reductive (citrate|pentose)|wood-ljungdahl|methane metabolism",
+      "Fermentation"              = "pyruvate metabolism|propanoate|butanoate|glycolysis|carbon metabolism",
+      "Nitrogen\nFixation"        = "nitrogen metabolism",
+      "Assimilatory N"            = "nitrogen metabolism|amino acid",
+      "Denitrification"           = "nitrogen metabolism",
+      "Sulfur Cycle"              = "sulfur metabolism",
+      "Nitrification"             = "nitrogen metabolism",
+      "Methane\nMetabolism"       = "methane metabolism|carbon fixation",
+      "Amino Acids"               = "amino acid|alanine|aspartate|glutamate|glycine|serine|threonine|cysteine|methionine|valine|leucine|isoleucine|lysine|arginine|proline|histidine|tyrosine|phenylalanine|tryptophan",
+      "Nucleotides"               = "purine metabolism|pyrimidine metabolism|nucleotide",
+      "Vitamins /\nCofactors"     = "vitamin|cofactor|biotin|folate|riboflavin|thiamine|nicotinate|pantothenate|porphyrin|ubiquinone|terpenoid",
+      "Fatty Acids"               = "fatty acid",
+      "Cell Wall"                 = "peptidoglycan|lipopolysaccharide|cell wall|teichoic",
+      "ETC"                       = "oxidative phosphorylation",
+      "ATP Synthase"              = "oxidative phosphorylation",
+      "Oxidative\nPhosphorylation"= "oxidative phosphorylation",
+      "Anaerobic\nRespiration"    = "oxidative phosphorylation|nitrogen metabolism|sulfur metabolism|methane metabolism",
+      "Photosynthesis"            = "photosynthesis|porphyrin",
+      "ABC\nTransporters"         = "abc transporter",
+      "Sec / Tat\nSystems"        = "bacterial secretion|protein export",
+      "Efflux\nPumps"             = "abc transporter|drug resistance|antimicrobial",
+      "Motility"                  = "flagell|chemotaxis|bacterial motility",
+      "CRISPR"                    = "prokaryotic defense|crispr",
+      "Stress\nResponse"          = "two-component|quorum|chaperone|stress|sos"
+    )
+    path_re <- CAT_PATH_FILTERS[[ cat_key[1] ]]   # NULL if no filter for this category
+
+    # Filter L3 list by the regex for the current category
+    ko_l3_filtered <- function(ko) {
+      l3 <- ko_l3_fn(ko)
+      if (length(l3) == 0 || is.null(path_re) || !nzchar(path_re)) return(l3)
+      hits <- grepl(path_re, l3, ignore.case = TRUE, perl = TRUE)
+      if (any(hits)) l3[hits] else character(0)
+    }
+
     # Build per-KO rows
     rows <- lapply(cat_kos, function(ko) {
       list(
         ko      = ko,
         name    = ko_name_fn(ko),
-        l3      = ko_l3_fn(ko),
+        l3      = ko_l3_filtered(ko),
         present = ko %in% mag_kos
       )
     })
