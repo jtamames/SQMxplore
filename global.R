@@ -115,12 +115,34 @@ CSIC_LOGO_B64 <- "iVBORw0KGgoAAAANSUhEUgAAEo0AAANbCAIAAAAGKfZXAAAACXBIWXMAAA7EAA
   data.frame(id=rep_ids, l1=l1, l2=l2, l3=l3, stringsAsFactors=FALSE)
 }
 
+# Parse keggfun2.txt for KO -> "symbol  description" mapping (cols 1-3)
+.load_kegg_names <- function() {
+  f <- .find_sqm_data_file("keggfun2.txt")
+  if (is.null(f)) return(NULL)
+  raw <- readLines(f, warn=FALSE)
+  raw <- raw[!grepl("^#", raw) & nchar(trimws(raw)) > 0]
+  parts <- strsplit(raw, "\t", fixed=TRUE)
+  ok <- lengths(parts) >= 3
+  parts <- parts[ok]
+  ids  <- sapply(parts, function(x) trimws(x[1]))
+  sym  <- sapply(parts, function(x) trimws(x[2]))
+  desc <- sapply(parts, function(x) trimws(x[3]))
+  labels <- ifelse(nzchar(sym) & nzchar(desc), paste(sym, desc),
+            ifelse(nzchar(desc), desc, sym))
+  labels <- labels[!duplicated(ids)]
+  names(labels) <- ids[!duplicated(ids)]
+  labels <- labels[nzchar(labels)]
+  labels
+}
+
 COG_CATEGORIES  <- .load_cog_categories()
 KEGG_CATEGORIES <- .load_kegg_categories()
+KEGG_NAMES      <- .load_kegg_names()
 KEGG_L1_SHOW <- c("Cellular Processes", "Environmental Information Processing",
                   "Genetic Information Processing", "Metabolism")
 message("COG_CATEGORIES: ", if(is.null(COG_CATEGORIES)) "NOT FOUND" else paste(nrow(COG_CATEGORIES),"rows"))
 message("KEGG_CATEGORIES: ", if(is.null(KEGG_CATEGORIES)) "NOT FOUND" else paste(nrow(KEGG_CATEGORIES),"rows"))
+message("KEGG_NAMES: ", if(is.null(KEGG_NAMES)) "NOT FOUND" else paste(length(KEGG_NAMES), "KOs"))
 
 `%||%` <- function(a, b) if (!is.null(a)) a else b
 

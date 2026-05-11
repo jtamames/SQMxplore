@@ -4901,9 +4901,11 @@ server <- function(input, output, session) {
     cat_kos <- unique(MAG_MAP_CATEGORIES[[cat_key[1]]]$kos)
 
     # KO name + path lookup
-    # Source 1: proj$functions$KEGG$names — data.frame, rownames=KO, cols: Name, Path
-    # Source 2: proj$misc$KEGG_names — named vector KO->name
-    # Source 3: orfs table — KEGG ID / KEGGFUN columns (covers KOs not in source 1/2)
+    # Source 0: KEGG_NAMES global (master KEGG database, loaded once in global.R)
+    # Source 1: proj$functions$KEGG$names
+    # Source 2: proj$misc$KEGG_names
+    # Source 3: orfs table KEGGFUN
+
     ko_names_df <- tryCatch({
       df <- proj$functions$KEGG$names
       if (is.data.frame(df) && nrow(df) > 0) df else NULL
@@ -4911,26 +4913,28 @@ server <- function(input, output, session) {
 
     misc_names <- tryCatch(proj$misc$KEGG_names, error = function(e) NULL)
 
-    # Build KO -> name dictionary from ORF table as a 3rd fallback
+    # Build KO -> name dictionary from ORF table as a fallback
     orf_ko_names <- tryCatch({
       ot <- proj$orfs$table
       if (!is.null(ot) && all(c("KEGG ID", "KEGGFUN") %in% colnames(ot))) {
         kos_raw  <- as.character(ot[, "KEGG ID"])
         funs_raw <- as.character(ot[, "KEGGFUN"])
-        # Strip trailing "*" marker that SqueezeMeta sometimes adds
         kos_clean <- sub("\\*+$", "", kos_raw)
         keep <- !is.na(kos_clean) & nzchar(kos_clean) &
                 !is.na(funs_raw)  & nzchar(funs_raw)
         if (any(keep)) {
-          dict <- tapply(funs_raw[keep], kos_clean[keep],
-                         function(v) v[which(nzchar(v))[1]])
-          dict
+          tapply(funs_raw[keep], kos_clean[keep],
+                 function(v) v[which(nzchar(v))[1]])
         } else NULL
       } else NULL
     }, error = function(e) NULL)
 
     # Helper: get name for a KO
     ko_name_fn <- function(ko) {
+      if (exists("KEGG_NAMES") && !is.null(KEGG_NAMES) && ko %in% names(KEGG_NAMES)) {
+        nm <- as.character(KEGG_NAMES[[ko]])
+        if (!is.na(nm) && nzchar(nm)) return(nm)
+      }
       if (!is.null(ko_names_df) && ko %in% rownames(ko_names_df)) {
         nm <- as.character(ko_names_df[ko, "Name"])
         if (!is.na(nm) && nzchar(nm)) return(nm)
@@ -4964,10 +4968,25 @@ server <- function(input, output, session) {
 
     # Helper: get L3 pathways for a KO
     # Path column format: "L1; L2; L3 | L1; L2; L3 | ..."
+    # Sources (in priority order):
+    #   1. KEGG_CATEGORIES global (complete KEGG database, covers all KOs)
+    #   2. proj$functions$KEGG$names (only KOs in project)
+    #   3. proj$orfs$table KEGGPATH (only KOs in project)
     ko_l3_fn <- function(ko) {
+      # Source 1: global KEGG_CATEGORIES (complete database)
+      if (exists("KEGG_CATEGORIES") && !is.null(KEGG_CATEGORIES)) {
+        kc_rows <- KEGG_CATEGORIES[KEGG_CATEGORIES$id == ko & !is.na(KEGG_CATEGORIES$l3), , drop = FALSE]
+        if (nrow(kc_rows) > 0) {
+          l3 <- unique(as.character(kc_rows$l3))
+          l3 <- l3[!is.na(l3) & nzchar(l3)]
+          if (length(l3) > 0) return(l3)
+        }
+      }
+      # Source 2: project KEGG names table
       path_raw <- NA_character_
       if (!is.null(ko_names_df) && ko %in% rownames(ko_names_df))
         path_raw <- as.character(ko_names_df[ko, "Path"])
+      # Source 3: ORF table KEGGPATH
       if ((is.na(path_raw) || !nzchar(path_raw)) &&
           !is.null(orf_ko_paths) && ko %in% names(orf_ko_paths))
         path_raw <- as.character(orf_ko_paths[[ko]])
