@@ -428,19 +428,7 @@ nav_panel("Load",
           uiOutput("magmap_bin_select_ui")
         ),
         tags$hr(class = "section-divider"),
-        uiOutput("magmap_selected_ui"),
-        tags$hr(class = "section-divider"),
-        tags$div(class = "sidebar-box",
-          tags$div(class = "form-label", "Colour scale"),
-          tags$div(style = "display:flex; gap:8px; align-items:center;",
-            tags$div(style = "font-size:0.78rem; color:var(--muted);", "0%"),
-            tags$div(id = "magmap_gradient_bar",
-              style = "flex:1; height:12px; border-radius:4px; background: linear-gradient(to right, rgba(255,50,50,0.15), rgba(255,50,50,0.75));"),
-            tags$div(style = "font-size:0.78rem; color:var(--muted);", "100%")
-          ),
-          tags$div(style = "font-size:0.78rem; color:var(--muted); margin-top:4px;",
-            "Red overlay opacity = % KEGG completeness per category")
-        )
+        uiOutput("magmap_selected_ui")
       ),
       tags$div(
         card(

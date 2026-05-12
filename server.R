@@ -391,6 +391,7 @@ server <- function(input, output, session) {
     tp <- tryCatch(parseDirPath(roots, input$dir_manual_tables), error = function(e) NULL)
     req(tp); if (nchar(tp) > 0) { tables_path(tp); need_manual(FALSE) }
   })
+
   output$project_info_ui <- renderUI({
     req(path_project())
     proj_dir <- path_project()
@@ -4370,278 +4371,183 @@ server <- function(input, output, session) {
 
     # Central Carbon Metabolism
     "Glycolysis" = list(
-      rect = c(0.1190, 0.1478, 0.2584, 0.2259),
-      kos  = c("K00844","K12407","K00845","K25026",
-               "K01810","K06859","K13810","K15916",
-               "K00850","K16370","K21071","K00918",
-               "K01623","K01624","K11645","K16305","K16306",
-               "K00134","K00150","K00927",
-               "K01834","K15633","K15634","K15635",
-               "K01689","K00873","K12406",
-               "K01596","K01610","K00016")
+      rect  = c(0.1190, 0.1478, 0.2584, 0.2259),
+      paths = c("Glycolysis / Gluconeogenesis")
     ),
     "Pentose Phosphate\nPathway" = list(
-      rect = c(0.1190, 0.2440, 0.2584, 0.3290),
-      kos  = c("K00036","K01057","K07404","K00033",
-               "K01807","K01808","K01783",
-               "K00615","K00616","K00622")
+      rect  = c(0.1190, 0.2440, 0.2584, 0.3290),
+      paths = c("Pentose phosphate pathway",
+                "Pentose and glucuronate interconversions")
     ),
     "Entner-Doudoroff\nPathway" = list(
-      rect = c(0.1190, 0.3457, 0.2584, 0.4310),
-      kos  = c("K00036","K01057","K00033","K01690","K01625")
+      rect  = c(0.1190, 0.3457, 0.2584, 0.4310),
+      paths = c("Glycolysis / Gluconeogenesis",
+                "Pentose phosphate pathway")
     ),
     "TCA Cycle" = list(
-      rect = c(0.2950, 0.2189, 0.3829, 0.3639),
-      kos  = c("K00163","K00161","K00162","K00627","K00382",
-               "K01647","K01648","K01681","K01682",
-               "K00031","K00030","K00164","K00658",
-               "K01902","K01903",
-               "K00239","K00240","K00241","K00242",
-               "K01676","K01677","K01678",
-               "K00116","K00025","K00026","K00024",
-               "K01637","K01638")
+      rect  = c(0.2950, 0.2189, 0.3829, 0.3639),
+      paths = c("Citrate cycle (TCA cycle)",
+                "Glyoxylate and dicarboxylate metabolism")
     ),
     "CO2 Fixation" = list(
-      rect = c(0.3968, 0.1506, 0.5139, 0.2286),
-      kos  = c("K01601","K01602","K00855",
-               "K00197","K00194","K15022",
-               "K01938","K01491","K00297",
-               "K14138","K14139","K14140","K14141",
-               "K00169","K00170","K00171","K00172","K01006",
-               "K00174","K00175","K00177","K00176",
-               "K01647","K15230","K15231")
+      rect  = c(0.3968, 0.1506, 0.5139, 0.2286),
+      paths = c("Carbon fixation by Calvin cycle",
+                "Other carbon fixation pathways")
     ),
     "Fermentation" = list(
-      rect = c(0.3968, 0.3471, 0.5149, 0.4294),
-      kos  = c("K01568","K13979","K04072","K00001","K00121",
-               "K00656","K00625","K00925",
-               "K00016","K03777","K01613",
-               "K01659","K00004",
-               "K00929","K00634","K01034","K01035")
+      rect  = c(0.3968, 0.3471, 0.5149, 0.4294),
+      paths = c("Pyruvate metabolism",
+                "Propanoate metabolism",
+                "Butanoate metabolism",
+                "C5-Branched dibasic acid metabolism")
     ),
 
     # N, S and CH4 Metabolism
     "Nitrogen\nFixation" = list(
-      rect = c(0.5511, 0.1520, 0.6980, 0.2300),
-      kos  = c("K02588","K02586","K02591",
-               "K02585","K02587","K02592","K02589",
-               "K02593","K02594","K02595","K02596",
-               "K02597","K02600","K02601","K02584",
-               "K00531","K22896","K22897")
+      rect  = c(0.5511, 0.1520, 0.6980, 0.2300),
+      paths = c("Nitrogen metabolism")
     ),
     "Assimilatory N" = list(
-      rect = c(0.7333, 0.1520, 0.8625, 0.2300),
-      kos  = c("K01915","K01914",
-               "K00264","K00265","K00266",
-               "K00261","K00262","K00263",
-               "K00367","K10534",
-               "K00362","K00363","K00366",
-               "K02575","K02576","K02577","K02578")
+      rect  = c(0.7333, 0.1520, 0.8625, 0.2300),
+      paths = c("Nitrogen metabolism")
     ),
     "Denitrification" = list(
-      rect = c(0.5500, 0.2496, 0.6980, 0.3262),
-      kos  = c("K00370","K00371","K00374",
-               "K02567","K02568","K00376",
-               "K02305","K04561","K00368","K15864")
+      rect  = c(0.5500, 0.2496, 0.6980, 0.3262),
+      paths = c("Nitrogen metabolism")
     ),
     "Sulfur Cycle" = list(
-      rect = c(0.7342, 0.2496, 0.8625, 0.3262),
-      kos  = c("K00958","K00394","K00395",
-               "K11180","K11181",
-               "K17224","K17225","K17226","K17227","K17228","K17229",
-               "K16950","K16951","K17252",
-               "K00956","K00957","K00390",
-               "K00380","K00381","K01738")
+      rect  = c(0.7342, 0.2496, 0.8625, 0.3262),
+      paths = c("Sulfur metabolism")
     ),
     "Nitrification" = list(
-      rect = c(0.5493, 0.3457, 0.6980, 0.4255),
-      kos  = c("K10944","K10945","K10946","K10535",
-               "K00370","K00371","K20932","K20935")
+      rect  = c(0.5493, 0.3457, 0.6980, 0.4255),
+      paths = c("Nitrogen metabolism")
     ),
     "Methane\nMetabolism" = list(
-      rect = c(0.7342, 0.3471, 0.8699, 0.4255),
-      kos  = c("K00399","K00401","K00402",
-               "K03421","K03422","K03423","K03424","K03388","K03390","K03391",
-               "K00205","K00319","K04480",
-               "K00320","K00577","K00578","K00579","K00580","K00581","K00582","K00583","K00584",
-               "K00200","K00201","K00202","K00203","K00204",
-               "K14083","K14084",
-               "K16157","K16158","K16159","K16160","K16161","K16162",
-               "K00440","K00441","K00442","K00443",
-               "K01499","K13942","K14126")
+      rect  = c(0.7342, 0.3471, 0.8699, 0.4255),
+      paths = c("Methane metabolism")
     ),
 
     # Biosynthesis / Anabolism
     "Amino Acids" = list(
-      rect = c(0.1301, 0.5115, 0.2444, 0.5897),
-      kos  = c("K01915","K00265","K00266","K00261","K00262","K01940","K00811","K00812","K00813",
-               "K00928","K00133","K01714","K01778","K00003","K00872","K01733","K01697",
-               "K00600","K00831","K01079","K00604","K00605",
-               "K00930","K00145","K01438","K00620","K00618","K01755",
-               "K00765","K01513","K02502","K01501","K02501","K00817","K01814","K00013",
-               "K01695","K01696","K00820","K00766","K01817","K00609","K00601","K01823",
-               "K14170","K14172","K04518",
-               "K01652","K01653","K00053","K01687","K00826",
-               "K00548","K01760","K00549","K01738","K01739")
+      rect  = c(0.1301, 0.5115, 0.2444, 0.5897),
+      paths = c("Alanine, aspartate and glutamate metabolism",
+                "Glycine, serine and threonine metabolism",
+                "Cysteine and methionine metabolism",
+                "Valine, leucine and isoleucine biosynthesis",
+                "Lysine biosynthesis",
+                "Arginine biosynthesis",
+                "Histidine metabolism",
+                "Phenylalanine, tyrosine and tryptophan biosynthesis")
     ),
     "Nucleotides" = list(
-      rect = c(0.2704, 0.5115, 0.3950, 0.5897),
-      kos  = c("K00764","K01945","K01944","K01923","K01924",
-               "K00602","K01492","K01756",
-               "K01951","K00088","K00942",
-               "K01465","K00526","K02844","K00611",
-               "K01537","K00226","K00940","K13800",
-               "K00525","K00549","K01495")
+      rect  = c(0.2704, 0.5115, 0.3950, 0.5897),
+      paths = c("Purine metabolism",
+                "Pyrimidine metabolism")
     ),
     "Vitamins /\nCofactors" = list(
-      rect = c(0.4165, 0.5563, 0.4926, 0.6483),
-      kos  = c("K00941","K00788","K00946","K00949","K03148","K03149","K03151",
-               "K00793","K01497","K00794","K02794","K02793",
-               "K06215","K06214","K00763","K01556","K00815","K01580",
-               "K01071","K00859","K00939",
-               "K00652","K01935","K00833","K01012",
-               "K01737","K00796","K00297","K01479",
-               "K02232","K02229","K02230","K02228",
-               "K00798","K01772","K02224","K02225","K02226","K02227",
-               "K01890","K01698","K00552","K00599","K01773","K01744","K01770","K00606",
-               "K00568","K00667","K03183","K03187","K02548","K02549","K01661","K02551","K02550")
+      rect  = c(0.4165, 0.5563, 0.4926, 0.6483),
+      paths = c("Thiamine metabolism",
+                "Riboflavin metabolism",
+                "Vitamin B6 metabolism",
+                "Nicotinate and nicotinamide metabolism",
+                "Pantothenate and CoA biosynthesis",
+                "Biotin metabolism",
+                "Lipoic acid metabolism",
+                "Folate biosynthesis",
+                "Porphyrin metabolism",
+                "Ubiquinone and other terpenoid-quinone biosynthesis")
     ),
     "Fatty Acids" = list(
-      rect = c(0.1301, 0.6120, 0.2444, 0.6901),
-      kos  = c("K00648","K11533","K00647",
-               "K00059","K01703","K01704",
-               "K00208","K09458","K00645",
-               "K01962","K01963","K01961","K01964",
-               "K00232","K01692","K00022","K07508",
-               "K00249","K01715","K00019","K00632","K00626",
-               "K00981","K02517","K00965","K01448")
+      rect  = c(0.1301, 0.6120, 0.2444, 0.6901),
+      paths = c("Fatty acid biosynthesis",
+                "Fatty acid degradation",
+                "Glycerophospholipid metabolism")
     ),
     "Cell Wall" = list(
-      rect = c(0.2704, 0.6120, 0.3950, 0.6901),
-      kos  = c("K01921","K00075","K01914","K00286","K01919","K01920","K01498",
-               "K03469","K01778","K06078","K06079",
-               "K05363","K03587","K03588","K03589",
-               "K01093","K01067",
-               "K02536","K02527","K02526","K02528",
-               "K02517","K02519","K02535","K03280",
-               "K00748","K02850","K02849","K02848",
-               "K00754","K02843","K02842",
-               "K00699","K00974","K14327","K14328")
+      rect  = c(0.2704, 0.6120, 0.3950, 0.6901),
+      paths = c("Peptidoglycan biosynthesis",
+                "Lipopolysaccharide biosynthesis",
+                "Teichoic acid biosynthesis",
+                "Amino sugar and nucleotide sugar metabolism")
     ),
 
     # Respiration / Energy
+    # ETC, ATP Synthase and Oxidative Phosphorylation all map to KEGG 00190.
     "ETC" = list(
-      rect = c(0.5288, 0.5019, 0.6952, 0.5780),
-      kos  = c("K00330","K00331","K00332","K00333","K00334","K00335","K00336",
-               "K00337","K00338","K00339","K00340","K00341","K00342","K00343",
-               "K00239","K00240","K00241","K00242",
-               "K00411","K00412","K00413","K00414","K00415",
-               "K02256","K02262","K02264","K02265",
-               "K02277","K02276","K00425","K00426",
-               "K02548","K03186","K03187")
+      rect  = c(0.5288, 0.5019, 0.6952, 0.5780),
+      paths = c("Oxidative phosphorylation")
     ),
     "ATP Synthase" = list(
-      rect = c(0.7296, 0.5019, 0.8625, 0.5780),
-      kos  = c("K02111","K02112","K02115","K02113","K02114",
-               "K02108","K02109","K02110","K02116",
-               "K02132","K02133","K02134")
+      rect  = c(0.7296, 0.5019, 0.8625, 0.5780),
+      paths = c("Oxidative phosphorylation")
     ),
     "Oxidative\nPhosphorylation" = list(
-      rect = c(0.5288, 0.5995, 0.6952, 0.6761),
-      kos  = c("K00330","K00331","K00332","K00333","K00334","K00335","K00336",
-               "K00337","K00338","K00339","K00340","K00341","K00342","K00343",
-               "K00239","K00240","K00241","K00242",
-               "K00411","K00412","K00413","K00414","K00415",
-               "K02256","K02262","K02264","K02265",
-               "K00425","K00426",
-               "K02111","K02112","K02115","K02113","K02114",
-               "K02108","K02109","K02110","K02116")
+      rect  = c(0.5288, 0.5995, 0.6952, 0.6761),
+      paths = c("Oxidative phosphorylation")
     ),
     "Anaerobic\nRespiration" = list(
-      rect = c(0.7296, 0.5981, 0.8625, 0.6761),
-      kos  = c("K00370","K00371","K00374",
-               "K02567","K02568","K00368","K15864",
-               "K02305","K04561","K00376",
-               "K00958","K00394","K00395","K11180","K11181",
-               "K00244","K00245","K00246","K00247",
-               "K07306","K07305","K03603","K04755","K02639")
+      rect  = c(0.7296, 0.5981, 0.8625, 0.6761),
+      paths = c("Nitrogen metabolism",
+                "Sulfur metabolism",
+                "Oxidative phosphorylation")
     ),
     "Photosynthesis" = list(
-      rect = c(0.5288, 0.6943, 0.8625, 0.7473),
-      kos  = c("K02703","K02704","K02705","K02706","K02707","K02708",
-               "K08905","K02689","K02690","K02691","K02692","K02693","K02694",
-               "K02696","K02697","K02698","K02699","K02700","K02701","K02702",
-               "K02711","K02712","K02713","K02714","K02715","K02716",
-               "K01601","K01602","K00855","K02641","K02642")
+      rect  = c(0.5288, 0.6943, 0.8625, 0.7473),
+      paths = c("Photosynthesis",
+                "Photosynthesis - antenna proteins")
     ),
 
     # Transporters / Systems
     "ABC\nTransporters" = list(
-      rect = c(0.1425, 0.8058, 0.2565, 0.8705),
-      kos  = c("K06147","K06148","K06149",
-               "K01998","K01999","K02000","K02001","K02002",
-               "K10542","K10543","K10544","K10545","K10546",
-               "K10118","K10119","K10120",
-               "K02031","K02032","K02033","K02034","K02035",
-               "K02003","K02004","K02005","K02006",
-               "K09687","K09688","K09689",
-               "K10551","K10552","K10553",
-               "K01990","K01991","K01992",
-               "K10440","K10441","K10442",
-               "K09969","K10009","K10013",
-               "K02028","K02027","K02026",
-               "K02036","K02037","K02038","K02039","K02040",
-               "K10820","K10821","K10822","K12340","K12341")
+      rect  = c(0.1425, 0.8058, 0.2565, 0.8705),
+      paths = c("ABC transporters")
     ),
     "Sec / Tat\nSystems" = list(
-      rect = c(0.2723, 0.8072, 0.3783, 0.8705),
-      kos  = c("K03070","K03071","K03072","K03073","K03074","K03075","K03076","K03077",
-               "K03110","K03106","K03286",
-               "K03522","K03523","K13771",
-               "K03116","K03117","K03118","K03425",
-               "K02453","K02454","K02455","K02456","K02457","K02458",
-               "K02459","K02460","K02461","K02462","K02463","K02464")
+      rect  = c(0.2723, 0.8072, 0.3783, 0.8705),
+      paths = c("Protein export",
+                "Bacterial secretion system")
     ),
     "Efflux\nPumps" = list(
-      rect = c(0.3935, 0.8072, 0.4963, 0.8705),
-      kos  = c("K18138","K18139","K03585","K06147",
-               "K18143","K18144","K08139","K03543","K08140",
-               "K03380","K03327","K09687","K09688",
-               "K02470","K13655","K07672","K19415")
+      rect  = c(0.3935, 0.8072, 0.4963, 0.8705),
+      paths = c("ABC transporters",
+                "Phosphotransferase system (PTS)",
+                "Two-component system")
     ),
     "Motility" = list(
-      rect = c(0.5112, 0.8058, 0.6013, 0.8705),
-      kos  = c("K02406","K02394",
-               "K02387","K02388","K02389","K02390","K02391","K02392","K02393",
-               "K02395","K02396","K02397","K02398","K02399","K02400","K02401",
-               "K02407","K02408","K02409","K02410","K02411","K02412","K02413",
-               "K02414","K02415","K02416","K02417","K02418","K02419","K02420",
-               "K02556","K02557","K02558",
-               "K02403","K02404","K02405",
-               "K02428","K02429","K02430","K02431","K02432",
-               "K03406","K03407","K03408","K03409","K03410",
-               "K03413","K03412","K02659","K02658")
+      rect  = c(0.5112, 0.8058, 0.6013, 0.8705),
+      paths = c("Flagellar assembly",
+                "Bacterial chemotaxis")
     ),
     "CRISPR" = list(
-      rect = c(0.6171, 0.8072, 0.7156, 0.8705),
-      kos  = c("K19078","K19079",
-               "K19080","K19081","K19082","K19083","K19084","K19085","K19086",
-               "K19611","K19473","K21319",
-               "K19088","K19089","K19090","K19091","K21572")
+      rect  = c(0.6171, 0.8072, 0.7156, 0.8705),
+      paths = c("DNA replication",
+                "Homologous recombination")
     ),
     "Stress\nResponse" = list(
-      rect = c(0.7296, 0.8072, 0.8476, 0.8705),
-      kos  = c("K03782","K03781","K00428","K00432",
-               "K04564","K04565","K00562",
-               "K00386","K03671","K04077","K04078",
-               "K03686","K04083","K03687","K05056",
-               "K03799","K04080","K04081","K04082",
-               "K03553","K03217","K02313","K02314","K03111",
-               "K02083","K11931","K03610",
-               "K03704","K03705","K03706","K03707","K03708","K03709",
-               "K06203","K06204")
+      rect  = c(0.7296, 0.8072, 0.8476, 0.8705),
+      paths = c("Mismatch repair",
+                "Two-component system")
     )
   )
+
+  # Build KO lists for each category from KEGG_CATEGORIES (the master KEGG
+  # pathway database loaded in global.R). This guarantees every KO listed in
+  # a category actually belongs to one of the L3 pathways assigned to it.
+  if (exists("KEGG_CATEGORIES") && !is.null(KEGG_CATEGORIES)) {
+    for (cn in names(MAG_MAP_CATEGORIES)) {
+      paths <- MAG_MAP_CATEGORIES[[cn]]$paths
+      kos <- unique(KEGG_CATEGORIES$id[
+        !is.na(KEGG_CATEGORIES$l3) &
+        KEGG_CATEGORIES$l3 %in% paths
+      ])
+      MAG_MAP_CATEGORIES[[cn]]$kos <- kos
+    }
+  } else {
+    # Fallback: if KEGG_CATEGORIES is unavailable, leave kos empty
+    for (cn in names(MAG_MAP_CATEGORIES))
+      MAG_MAP_CATEGORIES[[cn]]$kos <- character(0)
+  }
   magmap_selected_bin <- reactiveVal(NULL)
 
   # Completeness: present KOs / curated KO list size * 100
@@ -4685,11 +4591,160 @@ server <- function(input, output, session) {
         "Select a MAG above to see completeness overlay."))
     proj    <- sqm_data()
     mag_kos <- tryCatch(get_bin_kos(proj, bin), error = function(e) character(0))
+
+    # ── Pull MAG stats from proj$bins$table (loaded by SqueezeMeta from bintable) ──
+    bt  <- tryCatch(proj$bins$table, error = function(e) NULL)
+    row <- NULL
+    if (!is.null(bt) && bin %in% rownames(bt)) row <- bt[bin, , drop = FALSE]
+
+    stat_row <- function(label, value, unit = "") {
+      if (is.null(value) || length(value) == 0 ||
+          (is.numeric(value) && is.na(value)) ||
+          (is.character(value) && !nzchar(trimws(value))))
+        return(NULL)
+      val_txt <- if (is.numeric(value)) {
+        if (value >= 1e6)      sprintf("%.2f Mb", value / 1e6)
+        else if (value >= 1e3) sprintf("%.1f kb", value / 1e3)
+        else                   format(value, big.mark = ",", scientific = FALSE)
+      } else as.character(value)
+      tags$div(style = "display:flex; justify-content:space-between; gap:8px; font-size:0.78rem; padding:2px 0;",
+        tags$span(style = "color:var(--muted);", label),
+        tags$span(style = "font-weight:600; text-align:right; word-break:break-word;",
+                  paste0(val_txt, if (nzchar(unit)) paste0(" ", unit) else ""))
+      )
+    }
+
+    get_val <- function(row, col_pattern, exact = FALSE) {
+      if (is.null(row)) return(NULL)
+      cn  <- colnames(row)
+      idx <- if (exact) match(col_pattern, cn) else grep(col_pattern, cn, ignore.case = TRUE)[1]
+      if (is.na(idx) || length(idx) == 0) return(NULL)
+      v <- row[[idx]]
+      if (is.factor(v)) as.character(v) else v
+    }
+
+    completeness  <- get_val(row, "^Completeness$")
+    contamination <- get_val(row, "^Contamination$")
+    size_bp       <- get_val(row, "^(Length|Size)$|^Length \\(bp\\)$")
+    num_contigs   <- get_val(row, "^Num.*contigs?$|^Number of contigs$|^Contigs$")
+    taxonomy_raw  <- get_val(row, "^Tax$")
+
+    # ── Coverage: columnas "Coverage <sample>" de proj$bins$table ────────────
+    cov_block <- NULL
+    if (!is.null(row)) {
+      cov_cols <- grep("^Coverage ", colnames(row), value = TRUE)
+      if (length(cov_cols) > 0) {
+        cov_rows <- lapply(cov_cols, function(cc) {
+          sample_name <- sub("^Coverage ", "", cc)
+          val <- suppressWarnings(as.numeric(row[[cc]]))
+          if (is.na(val)) return(NULL)
+          tags$div(
+            style = "display:flex; justify-content:space-between; gap:8px; font-size:0.76rem; padding:1px 0;",
+            tags$span(style = "color:var(--muted); word-break:break-all;", sample_name),
+            tags$span(style = "font-weight:600;", sprintf("%.2f\u00d7", val))
+          )
+        })
+        cov_rows <- Filter(Negate(is.null), cov_rows)
+        if (length(cov_rows) > 0)
+          cov_block <- tags$div(
+            style = "margin-top:8px;",
+            tags$div(
+              style = "font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px;",
+              "Coverage per sample"
+            ),
+            do.call(tags$div, cov_rows)
+          )
+      }
+    }
+
+    # ── Taxonomy: parsear string separado por ";" en niveles independientes ───
+    # Soporta "k__Bacteria;p__Proteobacteria;..." o "Bacteria;Proteobacteria;..."
+    # Soporta prefijos con _ simple (k_) o doble (k__), y "rank:value" (Tax 16S)
+    RANK_LABELS <- c(
+      k = "Kingdom", d = "Domain", p = "Phylum", c = "Class",
+      o = "Order",   f = "Family", g = "Genus",  s = "Species"
+    )
+    PLAIN_RANKS <- c("Domain", "Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+
+    taxonomy_block <- NULL
+    if (!is.null(taxonomy_raw) && nzchar(trimws(as.character(taxonomy_raw)))) {
+      tax_str    <- trimws(as.character(taxonomy_raw))
+      tax_levels <- trimws(unlist(strsplit(tax_str, ";")))
+      tax_levels <- tax_levels[nzchar(tax_levels)]
+
+      # Detectar formato: "k_X" / "k__X",  "rank:value", o sin prefijo
+      has_underscore <- any(grepl("^[a-z]_+", tax_levels))
+      has_colon      <- any(grepl("^[a-z]+:", tax_levels))
+
+      tax_rows <- if (has_underscore) {
+        lapply(tax_levels, function(lvl) {
+          # Captura la letra de rango y el valor: "k_Bacteria" o "k__Bacteria"
+          m <- regmatches(lvl, regexec("^([a-z])_+(.+)$", lvl))[[1]]
+          if (length(m) < 3) return(NULL)
+          letter <- m[2]; value <- trimws(m[3])
+          label  <- RANK_LABELS[[letter]]
+          if (is.null(label)) label <- toupper(letter)
+          if (!nzchar(value) || value %in% c("NA", "Unknown", "unclassified")) return(NULL)
+          tags$div(
+            style = "display:flex; justify-content:space-between; gap:8px; font-size:0.76rem; padding:1px 0;",
+            tags$span(style = "color:var(--muted); flex-shrink:0;", label),
+            tags$span(style = "font-weight:600; text-align:right; word-break:break-word;",
+                      if (letter == "s") tags$em(value) else value)
+          )
+        })
+      } else if (has_colon) {
+        # Formato "rank:value" del Tax 16S
+        lapply(tax_levels, function(lvl) {
+          m <- regmatches(lvl, regexec("^([^:]+):(.+)$", lvl))[[1]]
+          if (length(m) < 3) return(NULL)
+          label <- trimws(m[2]); value <- trimws(m[3])
+          # Capitalizar label
+          label <- paste0(toupper(substr(label, 1, 1)), substr(label, 2, nchar(label)))
+          if (!nzchar(value) || value %in% c("NA", "Unknown", "unclassified")) return(NULL)
+          tags$div(
+            style = "display:flex; justify-content:space-between; gap:8px; font-size:0.76rem; padding:1px 0;",
+            tags$span(style = "color:var(--muted); flex-shrink:0;", label),
+            tags$span(style = "font-weight:600; text-align:right; word-break:break-word;", value)
+          )
+        })
+      } else {
+        # Sin prefijos: asignar rangos en orden
+        mapply(function(value, label) {
+          if (!nzchar(trimws(value)) || value %in% c("NA", "Unknown")) return(NULL)
+          tags$div(
+            style = "display:flex; justify-content:space-between; gap:8px; font-size:0.76rem; padding:1px 0;",
+            tags$span(style = "color:var(--muted); flex-shrink:0;", label),
+            tags$span(style = "font-weight:600; text-align:right; word-break:break-word;",
+                      if (label == "Species") tags$em(value) else value)
+          )
+        }, tax_levels, PLAIN_RANKS[seq_along(tax_levels)], SIMPLIFY = FALSE)
+      }
+      tax_rows <- Filter(Negate(is.null), tax_rows)
+
+      if (length(tax_rows) > 0)
+        taxonomy_block <- tags$div(
+          style = "margin-top:8px;",
+          tags$div(
+            style = "font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px;",
+            "Taxonomy"
+          ),
+          do.call(tags$div, tax_rows)
+        )
+    }
+
     tags$div(
       tags$div(class = "form-label", "Selected MAG"),
       tags$div(style = "font-size:0.82rem; word-break:break-all; font-weight:600;", bin),
-      tags$div(style = "font-size:0.78rem; color:var(--muted); margin-top:4px;",
-        paste0(length(mag_kos), " unique KEGG KOs"))
+      tags$div(style = "font-size:0.74rem; color:var(--muted); margin-top:2px; margin-bottom:8px;",
+        paste0(length(mag_kos), " unique KEGG KOs")),
+
+      stat_row("Completeness",  if (!is.null(completeness))  sprintf("%.1f%%", as.numeric(completeness))),
+      stat_row("Contamination", if (!is.null(contamination)) sprintf("%.1f%%", as.numeric(contamination))),
+      stat_row("Size",          if (!is.null(size_bp))       as.numeric(size_bp)),
+      stat_row("Contigs",       if (!is.null(num_contigs))   as.numeric(num_contigs)),
+
+      taxonomy_block,
+      cov_block
     )
   })
 
@@ -4999,55 +5054,17 @@ server <- function(input, output, session) {
       l3[!is.na(l3) & nzchar(l3)]
     }
 
-    # Keywords that L3 names must match (case-insensitive regex) for each category.
-    # Used to filter the multi-pathway annotations down to those relevant to the
-    # clicked category. Use the category KEY (with \n) as-is.
-    CAT_PATH_FILTERS <- list(
-      "Glycolysis"                = "glycolysis|gluconeogenesis",
-      "Pentose Phosphate\nPathway"= "pentose phosphate",
-      "Entner-Doudoroff\nPathway" = "entner|pentose phosphate",
-      "TCA Cycle"                 = "citrate cycle|tca cycle|2-oxocarboxylic|carbon fixation",
-      "CO2 Fixation"              = "carbon fixation|calvin|reductive (citrate|pentose)|wood-ljungdahl|methane metabolism",
-      "Fermentation"              = "pyruvate metabolism|propanoate|butanoate|glycolysis|carbon metabolism",
-      "Nitrogen\nFixation"        = "nitrogen metabolism",
-      "Assimilatory N"            = "nitrogen metabolism|amino acid",
-      "Denitrification"           = "nitrogen metabolism",
-      "Sulfur Cycle"              = "sulfur metabolism",
-      "Nitrification"             = "nitrogen metabolism",
-      "Methane\nMetabolism"       = "methane metabolism|carbon fixation",
-      "Amino Acids"               = "amino acid|alanine|aspartate|glutamate|glycine|serine|threonine|cysteine|methionine|valine|leucine|isoleucine|lysine|arginine|proline|histidine|tyrosine|phenylalanine|tryptophan",
-      "Nucleotides"               = "purine metabolism|pyrimidine metabolism|nucleotide",
-      "Vitamins /\nCofactors"     = "vitamin|cofactor|biotin|folate|riboflavin|thiamine|nicotinate|pantothenate|porphyrin|ubiquinone|terpenoid",
-      "Fatty Acids"               = "fatty acid",
-      "Cell Wall"                 = "peptidoglycan|lipopolysaccharide|cell wall|teichoic",
-      "ETC"                       = "oxidative phosphorylation",
-      "ATP Synthase"              = "oxidative phosphorylation",
-      "Oxidative\nPhosphorylation"= "oxidative phosphorylation",
-      "Anaerobic\nRespiration"    = "oxidative phosphorylation|nitrogen metabolism|sulfur metabolism|methane metabolism",
-      "Photosynthesis"            = "photosynthesis|porphyrin",
-      "ABC\nTransporters"         = "abc transporter",
-      "Sec / Tat\nSystems"        = "bacterial secretion|protein export",
-      "Efflux\nPumps"             = "abc transporter|drug resistance|antimicrobial",
-      "Motility"                  = "flagell|chemotaxis|bacterial motility",
-      "CRISPR"                    = "prokaryotic defense|crispr",
-      "Stress\nResponse"          = "two-component|quorum|chaperone|stress|sos"
-    )
-    path_re <- CAT_PATH_FILTERS[[ cat_key[1] ]]   # NULL if no filter for this category
-
-    # Filter L3 list by the regex for the current category
-    ko_l3_filtered <- function(ko) {
-      l3 <- ko_l3_fn(ko)
-      if (length(l3) == 0 || is.null(path_re) || !nzchar(path_re)) return(l3)
-      hits <- grepl(path_re, l3, ignore.case = TRUE, perl = TRUE)
-      if (any(hits)) l3[hits] else character(0)
-    }
-
-    # Build per-KO rows
+    # Build per-KO rows — l3 filtered to only the paths of this category
+    cat_paths <- MAG_MAP_CATEGORIES[[cat_key[1]]]$paths
     rows <- lapply(cat_kos, function(ko) {
+      all_l3 <- ko_l3_fn(ko)
+      # Only show pathways that belong to this category
+      l3 <- all_l3[all_l3 %in% cat_paths]
+      if (length(l3) == 0) l3 <- all_l3  # fallback: show all if none match (shouldn't happen)
       list(
         ko      = ko,
         name    = ko_name_fn(ko),
-        l3      = ko_l3_filtered(ko),
+        l3      = l3,
         present = ko %in% mag_kos
       )
     })
