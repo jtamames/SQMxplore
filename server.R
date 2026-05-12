@@ -4309,6 +4309,14 @@ server <- function(input, output, session) {
   # MAG MAP TAB — metabolic completeness diagram with interactive overlays
   # ===========================================================================
 
+  # ReactiveVals for the per-pathway pathview view inside MAG Map
+  magmap_pw_status  <- reactiveVal("idle")   # idle | generating | ready | error
+  magmap_pw_pid     <- reactiveVal(NULL)     # pathway ID being shown
+  magmap_pw_name    <- reactiveVal(NULL)     # pathway display name
+  magmap_pw_img     <- reactiveVal(NULL)     # path to rendered PNG
+  magmap_pw_nodes   <- reactiveVal(NULL)     # node df for hover/overlay
+  magmap_view_mode  <- reactiveVal("map")    # "map" | "pathway"
+
   # ---- Helper: extract KOs for a bin --------------------------------------
   get_bin_kos <- function(proj, bin_name) {
     # Extract KO identifiers for a given bin.
@@ -4749,7 +4757,177 @@ server <- function(input, output, session) {
   })
 
   # Main view: BacMet image + SVG overlay (coloured rects + % labels)
+  # OR pathview pathway diagram when magmap_view_mode() == "pathway"
   output$magmap_view_ui <- renderUI({
+
+    # ── PATHWAY MODE ────────────────────────────────────────────────────────────
+    if (magmap_view_mode() == "pathway") {
+      s <- magmap_pw_status()
+      back_btn <- actionButton("magmap_back", "\u2190 Back",
+                               class = "btn-default",
+                               style = "margin-bottom:10px; font-size:0.82rem;")
+      if (s == "generating") {
+        return(tagList(back_btn,
+          tags$div(style = "color:var(--muted); font-size:0.85rem; padding:2rem; text-align:center;",
+            tags$div(style = "font-size:1.5rem; margin-bottom:8px;", "\u25cc"),
+            tags$div("Generating pathway map for ",
+                     tags$strong(magmap_pw_name() %||% magmap_pw_pid()), "\u2026"),
+            tags$div(style = "margin-top:6px; font-size:0.78rem;",
+              "Green = present in MAG, grey = absent"))))
+      }
+      if (s == "error") {
+        return(tagList(back_btn,
+          tags$div(style = "color:#c0392b; font-size:0.85rem; padding:2rem; text-align:center;",
+            tags$div(style = "font-size:1.5rem;", "\u2715"),
+            tags$div("Pathway generation failed."))))
+      }
+      if (s == "ready") {
+        img_path  <- magmap_pw_img();  req(img_path, file.exists(img_path))
+        nodes     <- magmap_pw_nodes()
+        res_name  <- paste0("magmap_pw_", magmap_pw_pid())
+        addResourcePath(res_name, dirname(img_path))
+        img_src   <- paste0(res_name, "/", basename(img_path))
+        bin       <- magmap_selected_bin() %||% ""
+        mag_kos   <- tryCatch(get_bin_kos(sqm_data(), bin), error = function(e) character(0))
+        kegg_names <- tryCatch(sqm_data()$misc$KEGG_names, error = function(e) NULL)
+
+        # Tooltip CSS + div (reuse pw- id so same JS works)
+        tooltip_css <- tags$style(HTML("
+          #pw-tooltip {
+            position:fixed; pointer-events:none; z-index:9999;
+            background:rgba(20,30,50,0.92); color:#f0f4f8;
+            padding:5px 9px; border-radius:5px; font-size:0.75rem;
+            max-width:320px; line-height:1.4; display:none;
+            box-shadow:0 2px 8px rgba(0,0,0,0.3); white-space:pre-wrap; word-break:break-word;
+          }
+        "))
+        tooltip_div <- tags$div(id = "pw-tooltip")
+        tooltip_js  <- tags$script(HTML("
+          (function() {
+            var tip = document.getElementById('pw-tooltip');
+            if (!tip) return;
+            document.addEventListener('mousemove', function(e) {
+              tip.style.left = (e.clientX + 14) + 'px';
+              tip.style.top  = (e.clientY + 14) + 'px';
+            });
+          })();
+          function pwShowTip(el) {
+            var tip = document.getElementById('pw-tooltip');
+            if (tip) { tip.textContent = el.getAttribute('data-tip'); tip.style.display='block'; }
+          }
+          function pwHideTip() {
+            var tip = document.getElementById('pw-tooltip');
+            if (tip) tip.style.display='none';
+          }
+        "))
+
+        # Build node JSON for hover overlay + coloring
+        kgml_w <- attr(nodes, "kgml_w") %||% 1200
+        kgml_h <- attr(nodes, "kgml_h") %||% 900
+        node_json <- if (!is.null(nodes) && nrow(nodes) > 0) {
+          node_list <- lapply(seq_len(nrow(nodes)), function(i) {
+            r      <- nodes[i, ]
+            ko_ids <- unique(sub("^ko:", "", trimws(unlist(strsplit(r$ko_names, "[[:space:]]+")))))
+            ko_ids <- ko_ids[grepl("^K[0-9]{5}$", ko_ids)]
+            nms    <- if (!is.null(kegg_names)) unique(na.omit(kegg_names[ko_ids])) else character(0)
+            ko_str   <- paste(ko_ids, collapse = ", ")
+            name_str <- if (length(nms) > 0) paste(nms, collapse = " / ") else r$label
+            present  <- as.integer(any(ko_ids %in% mag_kos))
+            tip <- paste0(ko_str, "\n", name_str, "\n\u2014 ", if (present == 1L) "PRESENT" else "absent")
+            list(x = r$x, y = r$y, w = r$w, h = r$h, tip = tip, present = present)
+          })
+          jsonlite::toJSON(node_list, auto_unbox = TRUE)
+        } else "[]"
+
+        map_id <- "magmap_pwmap"
+        img_tag <- tags$div(
+          style = "position:relative; display:inline-block; width:100%;",
+          tags$img(src = img_src, id = map_id,
+            style = "max-width:100%; display:block; border:1px solid var(--border); border-radius:6px;",
+            alt = "KEGG pathway"),
+          tags$canvas(id = paste0(map_id, "_canvas"),
+            style = "position:absolute; top:0; left:0; width:100%; height:100%;")
+        )
+        overlay_js <- tags$script(HTML(sprintf('
+          (function() {
+            var nodes  = %s;
+            var KGML_W = %s;
+            var KGML_H = %s;
+            var img    = document.getElementById("%s");
+            var canvas = document.getElementById("%s_canvas");
+            var ctx    = canvas.getContext("2d");
+            function setup() {
+              canvas.width  = img.offsetWidth;
+              canvas.height = img.offsetHeight;
+              var scaleX = img.offsetWidth  / KGML_W;
+              var scaleY = img.offsetHeight / KGML_H;
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              for (var i = 0; i < nodes.length; i++) {
+                var n = nodes[i];
+                var x = (n.x - n.w / 2) * scaleX;
+                var y = (n.y - n.h / 2) * scaleY;
+                var w = n.w * scaleX;
+                var h = n.h * scaleY;
+                ctx.fillStyle   = n.present === 1 ? "rgba(26,122,58,0.72)" : "rgba(180,180,180,0.65)";
+                ctx.fillRect(x, y, w, h);
+                ctx.strokeStyle = n.present === 1 ? "#0f5c2a" : "#999999";
+                ctx.lineWidth   = 1;
+                ctx.strokeRect(x, y, w, h);
+              }
+              canvas.addEventListener("mousemove", function(e) {
+                var rect = canvas.getBoundingClientRect();
+                var mx   = e.clientX - rect.left;
+                var my   = e.clientY - rect.top;
+                var scX  = img.offsetWidth  / KGML_W;
+                var scY  = img.offsetHeight / KGML_H;
+                var hit  = null;
+                for (var i = 0; i < nodes.length; i++) {
+                  var n = nodes[i];
+                  if (mx >= (n.x - n.w/2)*scX && mx <= (n.x + n.w/2)*scX &&
+                      my >= (n.y - n.h/2)*scY && my <= (n.y + n.h/2)*scY) { hit = n; break; }
+                }
+                canvas.style.cursor = hit ? "crosshair" : "default";
+                var tip = document.getElementById("pw-tooltip");
+                if (hit) { tip.textContent = hit.tip; tip.style.display = "block"; }
+                else      { tip.style.display = "none"; }
+              });
+              canvas.addEventListener("mouseleave", function() {
+                var tip = document.getElementById("pw-tooltip");
+                if (tip) tip.style.display = "none";
+              });
+            }
+            if (img.complete && img.naturalWidth > 0) {
+              requestAnimationFrame(function() { requestAnimationFrame(setup); });
+            } else {
+              img.addEventListener("load", function() {
+                requestAnimationFrame(function() { requestAnimationFrame(setup); });
+              });
+            }
+            window.addEventListener("resize", setup);
+            // ResizeObserver catches Shiny panel layout settling after load
+            if (window.ResizeObserver) {
+              var ro = new ResizeObserver(function() { setup(); });
+              ro.observe(img);
+            }
+          })();
+        ', node_json, kgml_w, kgml_h, map_id, map_id)))
+
+        return(tagList(
+          back_btn,
+          tags$div(style = "font-size:0.78rem; color:var(--muted); margin-bottom:6px;",
+            tags$span(style = "display:inline-block; width:12px; height:12px; background:#1a7a3a; border-radius:2px; margin-right:4px; vertical-align:middle;"),
+            "Present in MAG  ",
+            tags$span(style = "display:inline-block; width:12px; height:12px; background:#e8e8e8; border:1px solid #ccc; border-radius:2px; margin-right:4px; margin-left:10px; vertical-align:middle;"),
+            "Absent"
+          ),
+          tooltip_css, tooltip_div, tooltip_js,
+          img_tag, overlay_js
+        ))
+      }
+      return(tagList(back_btn))
+    }
+
+    # ── MAP MODE (default) ──────────────────────────────────────────────────────
     proj <- sqm_data()
 
     # Resolve image (www/ folder preferred; fall back to base64 or copy)
@@ -5095,9 +5273,32 @@ server <- function(input, output, session) {
         color, icon)
     }
 
-    make_l3_header <- function(label) sprintf(
-      '<tr style="background:#e8edf5;"><td colspan="3" style="padding:5px 8px;font-weight:600;font-size:0.81rem;color:#1a3a6b;letter-spacing:0.01em;">%s</td></tr>',
-      htmltools::htmlEscape(label))
+    # Lookup pathway ID from name via KEGG_HIERARCHY
+    find_pid <- function(path_name) {
+      tryCatch({
+        for (l1 in KEGG_HIERARCHY) for (l2 in l1) for (pw in l2)
+          if (identical(pw$name, path_name)) return(pw$id)
+        NULL
+      }, error = function(e) NULL)
+    }
+
+    make_l3_header <- function(label) {
+      pid_val <- find_pid(label)
+      if (!is.null(pid_val)) {
+        # Clickable: sends pid to Shiny via magmap_pw_clicked
+        sprintf(
+          '<tr style="background:#e8edf5; cursor:pointer;" onclick="Shiny.setInputValue(\'magmap_pw_clicked\',{pid:\'%s\',name:\'%s\',ts:Date.now()},{priority:\'event\'})">
+            <td colspan="3" style="padding:5px 8px;font-weight:600;font-size:0.81rem;color:#1a5598;letter-spacing:0.01em;text-decoration:underline dotted;">%s &#x2197;</td>
+          </tr>',
+          htmltools::htmlEscape(pid_val, attribute = TRUE),
+          htmltools::htmlEscape(label, attribute = TRUE),
+          htmltools::htmlEscape(label))
+      } else {
+        sprintf(
+          '<tr style="background:#e8edf5;"><td colspan="3" style="padding:5px 8px;font-weight:600;font-size:0.81rem;color:#1a3a6b;letter-spacing:0.01em;">%s</td></tr>',
+          htmltools::htmlEscape(label))
+      }
+    }
 
     tbl_html <- ""
     for (l3 in all_l3) {
@@ -5139,8 +5340,106 @@ server <- function(input, output, session) {
     )
   })
 
+  # ── Observer: pathway header clicked → render pathview for that MAG ──────────
+  observeEvent(input$magmap_pw_clicked, {
+    v <- input$magmap_pw_clicked
+    req(!is.null(v), nzchar(v$pid))
+    pid  <- v$pid
+    name <- v$name
+    bin  <- magmap_selected_bin(); req(bin)
+    proj <- sqm_data(); req(proj)
 
-  # get_bin_kos() is defined earlier in this server scope — no duplication needed.
+    if (!requireNamespace("pathview", quietly = TRUE)) {
+      showNotification("pathview not installed. Run: BiocManager::install(\"pathview\")",
+                       type = "error", duration = 10)
+      return()
+    }
+
+    magmap_pw_status("generating")
+    magmap_pw_pid(pid)
+    magmap_pw_name(name)
+    magmap_pw_img(NULL)
+    magmap_pw_nodes(NULL)
+    magmap_view_mode("pathway")
+
+    shinyjs::delay(50, tryCatch({
+      mag_kos <- tryCatch(get_bin_kos(proj, bin), error = function(e) character(0))
+
+      dir.create(pw_kegg_cache, showWarnings = FALSE, recursive = TRUE)
+
+      # Download KEGG PNG and XML if not cached
+      png_cached <- file.path(pw_kegg_cache, paste0("ko", pid, ".png"))
+      xml_cached <- file.path(pw_kegg_cache, paste0("ko", pid, ".xml"))
+      if (!file.exists(png_cached))
+        tryCatch(pathview::download.kegg(pathway.id = pid, species = "ko",
+                                         kegg.dir = pw_kegg_cache, file.type = "png"),
+                 error = function(e) message("PNG download failed: ", e$message))
+      if (!file.exists(xml_cached))
+        .ensure_valid_xml(pid, pw_kegg_cache)
+
+      if (!file.exists(png_cached)) {
+        showNotification(paste("Could not download KEGG image for", pid),
+                         type = "error", duration = 8)
+        magmap_pw_status("error"); return()
+      }
+
+      # Parse KGML for node positions
+      xml_nodes <- tryCatch({
+        req(file.exists(xml_cached))
+        doc <- xml2::read_xml(xml_cached)
+        # KGML coordinates match the PNG pixel dimensions exactly
+        kgml_w <- NA_real_; kgml_h <- NA_real_
+        if (file.exists(png_cached) && requireNamespace("png", quietly = TRUE)) {
+          d <- dim(png::readPNG(png_cached))  # [height, width, channels]
+          kgml_w <- d[2]; kgml_h <- d[1]
+        }
+        if (is.na(kgml_w)) { kgml_w <- 1200; kgml_h <- 900 }
+        entries <- xml2::xml_find_all(doc, ".//entry[@type='ortholog']")
+        all_rows <- Filter(Negate(is.null), lapply(entries, function(e) {
+          ko_names <- trimws(xml2::xml_attr(e, "name"))
+          g <- xml2::xml_find_first(e, "graphics")
+          if (is.na(xml2::xml_attr(g, "x"))) return(NULL)
+          x <- as.numeric(xml2::xml_attr(g, "x"))
+          y <- as.numeric(xml2::xml_attr(g, "y"))
+          w <- as.numeric(xml2::xml_attr(g, "width"))
+          h <- as.numeric(xml2::xml_attr(g, "height"))
+          if (anyNA(c(x, y, w, h))) return(NULL)
+          label <- xml2::xml_attr(g, "name")
+          list(ko_names = ko_names, x = x, y = y, w = w, h = h, label = label)
+        }))
+        if (length(all_rows) == 0) return(NULL)
+        df <- data.frame(
+          ko_names = sapply(all_rows, `[[`, "ko_names"),
+          x = sapply(all_rows, `[[`, "x"), y = sapply(all_rows, `[[`, "y"),
+          w = sapply(all_rows, `[[`, "w"), h = sapply(all_rows, `[[`, "h"),
+          label = sapply(all_rows, `[[`, "label"),
+          stringsAsFactors = FALSE
+        )
+        df <- df[!duplicated(paste(round(df$x), round(df$y), sep = ",")), ]
+        attr(df, "kgml_w") <- kgml_w
+        attr(df, "kgml_h") <- kgml_h
+        df
+      }, error = function(e) { message("MAG map XML parse error: ", e$message); NULL })
+
+      magmap_pw_nodes(xml_nodes)
+      magmap_pw_img(png_cached)
+      magmap_pw_status("ready")
+
+    }, error = function(e) {
+      message("MAG map pathview error: ", e$message)
+      magmap_pw_status("error")
+      showNotification(paste("Pathway error:", e$message), type = "error", duration = 10)
+    }))
+  })
+
+  # ── Back button: return to map view ─────────────────────────────────────────
+  observeEvent(input$magmap_back, {
+    magmap_view_mode("map")
+    magmap_pw_status("idle")
+    magmap_pw_img(NULL)
+    magmap_pw_nodes(NULL)
+  })
+
 
 
 
