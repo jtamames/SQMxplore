@@ -1,10 +1,7 @@
-cat("Starting app, please wait...\n")
-flush.console()
-
 ui <- page_navbar(
   id = "main_navbar",
   title = tags$div(
-    style = "display:flex; flex-direction:column; align-items:flex-start; line-height:1; gap:2px;",
+    style = "display:flex; flex-direction:column; align-items:flex-start; line-height:1; gap:0;",
     tags$img(
       src = paste0("data:image/png;base64,", WATERMELON_LOGO_B64),
       height = "62px",
@@ -437,7 +434,7 @@ nav_panel("Load",
       )
     )
   ),
-  nav_panel("MAG Map", value = "MAG Map",
+  nav_panel("MAGs", value = "MAG Map",
     layout_sidebar(
       sidebar = sidebar(width = 290,
         tags$div(class = "sidebar-box",
