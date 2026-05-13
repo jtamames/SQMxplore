@@ -514,9 +514,7 @@
           }
         "))
 
-        # Build node JSON for hover overlay + coloring
-        kgml_w <- attr(nodes, "kgml_w") %||% 1200
-        kgml_h <- attr(nodes, "kgml_h") %||% 900
+        # Build node JSON — same structure as server_pathways.R
         node_json <- if (!is.null(nodes) && nrow(nodes) > 0) {
           node_list <- lapply(seq_len(nrow(nodes)), function(i) {
             r      <- nodes[i, ]
@@ -534,76 +532,61 @@
 
         map_id <- "magmap_pwmap"
         img_tag <- tags$div(
+          id = paste0(map_id, "_wrap"),
           style = "position:relative; display:inline-block; width:100%;",
           tags$img(src = img_src, id = map_id,
             style = "max-width:100%; display:block; border:1px solid var(--border); border-radius:6px;",
-            alt = "KEGG pathway"),
-          tags$canvas(id = paste0(map_id, "_canvas"),
-            style = "position:absolute; top:0; left:0; width:100%; height:100%;")
+            alt = "KEGG pathway")
         )
         overlay_js <- tags$script(HTML(sprintf('
           (function() {
             var nodes  = %s;
-            var KGML_W = %s;
-            var KGML_H = %s;
             var img    = document.getElementById("%s");
-            var canvas = document.getElementById("%s_canvas");
-            var ctx    = canvas.getContext("2d");
-            function setup() {
-              canvas.width  = img.offsetWidth;
-              canvas.height = img.offsetHeight;
-              var scaleX = img.offsetWidth  / KGML_W;
-              var scaleY = img.offsetHeight / KGML_H;
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
+            var wrap   = document.getElementById("%s_wrap");
+            function placeBoxes() {
+              // Remove old boxes
+              wrap.querySelectorAll(".magmap-box").forEach(function(el) { el.remove(); });
+              var scaleX = img.offsetWidth  / img.naturalWidth;
+              var scaleY = img.offsetHeight / img.naturalHeight;
               for (var i = 0; i < nodes.length; i++) {
                 var n = nodes[i];
                 var x = (n.x - n.w / 2) * scaleX;
                 var y = (n.y - n.h / 2) * scaleY;
                 var w = n.w * scaleX;
                 var h = n.h * scaleY;
-                ctx.fillStyle   = n.present === 1 ? "rgba(26,122,58,0.72)" : "rgba(180,180,180,0.65)";
-                ctx.fillRect(x, y, w, h);
-                ctx.strokeStyle = n.present === 1 ? "#0f5c2a" : "#999999";
-                ctx.lineWidth   = 1;
-                ctx.strokeRect(x, y, w, h);
+                var box = document.createElement("div");
+                box.className = "magmap-box";
+                box.style.position   = "absolute";
+                box.style.left       = x + "px";
+                box.style.top        = y + "px";
+                box.style.width      = w + "px";
+                box.style.height     = h + "px";
+                box.style.background = n.present === 1 ? "rgba(26,122,58,0.72)" : "rgba(180,180,180,0.65)";
+                box.style.border     = n.present === 1 ? "1px solid #0f5c2a" : "1px solid #999";
+                box.style.boxSizing  = "border-box";
+                box.style.cursor     = "crosshair";
+                box.title            = n.tip;
+                (function(tip) {
+                  box.addEventListener("mouseenter", function() {
+                    var el = document.getElementById("pw-tooltip");
+                    if (el) { el.textContent = tip; el.style.display = "block"; }
+                  });
+                  box.addEventListener("mouseleave", function() {
+                    var el = document.getElementById("pw-tooltip");
+                    if (el) el.style.display = "none";
+                  });
+                })(n.tip);
+                wrap.appendChild(box);
               }
-              canvas.addEventListener("mousemove", function(e) {
-                var rect = canvas.getBoundingClientRect();
-                var mx   = e.clientX - rect.left;
-                var my   = e.clientY - rect.top;
-                var scX  = img.offsetWidth  / KGML_W;
-                var scY  = img.offsetHeight / KGML_H;
-                var hit  = null;
-                for (var i = 0; i < nodes.length; i++) {
-                  var n = nodes[i];
-                  if (mx >= (n.x - n.w/2)*scX && mx <= (n.x + n.w/2)*scX &&
-                      my >= (n.y - n.h/2)*scY && my <= (n.y + n.h/2)*scY) { hit = n; break; }
-                }
-                canvas.style.cursor = hit ? "crosshair" : "default";
-                var tip = document.getElementById("pw-tooltip");
-                if (hit) { tip.textContent = hit.tip; tip.style.display = "block"; }
-                else      { tip.style.display = "none"; }
-              });
-              canvas.addEventListener("mouseleave", function() {
-                var tip = document.getElementById("pw-tooltip");
-                if (tip) tip.style.display = "none";
-              });
             }
-            if (img.complete && img.naturalWidth > 0) {
-              requestAnimationFrame(function() { requestAnimationFrame(setup); });
-            } else {
-              img.addEventListener("load", function() {
-                requestAnimationFrame(function() { requestAnimationFrame(setup); });
-              });
-            }
-            window.addEventListener("resize", setup);
-            // ResizeObserver catches Shiny panel layout settling after load
+            if (img.complete && img.naturalWidth > 0) { placeBoxes(); }
+            else { img.addEventListener("load", placeBoxes); }
+            window.addEventListener("resize", placeBoxes);
             if (window.ResizeObserver) {
-              var ro = new ResizeObserver(function() { setup(); });
-              ro.observe(img);
+              new ResizeObserver(placeBoxes).observe(img);
             }
           })();
-        ', node_json, kgml_w, kgml_h, map_id, map_id)))
+        ', node_json, map_id, map_id)))
 
         return(tagList(
           back_btn,
@@ -1076,26 +1059,22 @@
         magmap_pw_status("error"); return()
       }
 
-      # Parse KGML for node positions
+      # Parse KGML for node positions — same approach as server_pathways.R
+      # Coordinates are pre-scaled in R so JS only needs offsetWidth/naturalWidth
       xml_nodes <- tryCatch({
         req(file.exists(xml_cached))
         doc <- xml2::read_xml(xml_cached)
-        # KGML coordinates match the PNG pixel dimensions exactly
-        kgml_w <- NA_real_; kgml_h <- NA_real_
-        if (file.exists(png_cached) && requireNamespace("png", quietly = TRUE)) {
-          d <- dim(png::readPNG(png_cached))  # [height, width, channels]
-          kgml_w <- d[2]; kgml_h <- d[1]
-        }
-        if (is.na(kgml_w)) { kgml_w <- 1200; kgml_h <- 900 }
+        # scale_x/y = 1 because we show the original KEGG PNG (no pathview re-render)
+        scale_x <- 1; scale_y <- 1
         entries <- xml2::xml_find_all(doc, ".//entry[@type='ortholog']")
         all_rows <- Filter(Negate(is.null), lapply(entries, function(e) {
           ko_names <- trimws(xml2::xml_attr(e, "name"))
           g <- xml2::xml_find_first(e, "graphics")
           if (is.na(xml2::xml_attr(g, "x"))) return(NULL)
-          x <- as.numeric(xml2::xml_attr(g, "x"))
-          y <- as.numeric(xml2::xml_attr(g, "y"))
-          w <- as.numeric(xml2::xml_attr(g, "width"))
-          h <- as.numeric(xml2::xml_attr(g, "height"))
+          x <- as.numeric(xml2::xml_attr(g, "x")) * scale_x
+          y <- as.numeric(xml2::xml_attr(g, "y")) * scale_y
+          w <- as.numeric(xml2::xml_attr(g, "width"))  * scale_x
+          h <- as.numeric(xml2::xml_attr(g, "height")) * scale_y
           if (anyNA(c(x, y, w, h))) return(NULL)
           label <- xml2::xml_attr(g, "name")
           list(ko_names = ko_names, x = x, y = y, w = w, h = h, label = label)
@@ -1108,10 +1087,7 @@
           label = sapply(all_rows, `[[`, "label"),
           stringsAsFactors = FALSE
         )
-        df <- df[!duplicated(paste(round(df$x), round(df$y), sep = ",")), ]
-        attr(df, "kgml_w") <- kgml_w
-        attr(df, "kgml_h") <- kgml_h
-        df
+        df[!duplicated(paste(round(df$x), round(df$y), sep = ",")), ]
       }, error = function(e) { message("MAG map XML parse error: ", e$message); NULL })
 
       magmap_pw_nodes(xml_nodes)
