@@ -328,7 +328,37 @@
     contamination <- get_val(row, "^Contamination$")
     size_bp       <- get_val(row, "^(Length|Size)$|^Length \\(bp\\)$")
     num_contigs   <- get_val(row, "^Num.*contigs?$|^Number of contigs$|^Contigs$")
-    taxonomy_raw  <- get_val(row, "^Tax$")
+    # ── Taxonomy: read directly from 18.<project>.bintable file ──
+    # Format: tab-separated, first line is "# Created by ..." comment,
+    # second line is header, third col is "Tax" (semicolon-separated lineage).
+    taxonomy_raw <- NULL
+    proj_dir <- tryCatch(path_project(), error = function(e) NULL)
+    if (!is.null(proj_dir) && nzchar(proj_dir)) {
+      results_dir <- file.path(proj_dir, "results")
+      bt_files <- list.files(
+        c(results_dir, proj_dir),
+        pattern = "^18\\..*\\.bintable$", full.names = TRUE
+      )
+      if (length(bt_files) > 0) {
+        bt_path <- bt_files[1]
+        bt_df <- tryCatch(
+          read.table(bt_path, sep = "\t", header = TRUE, comment.char = "#",
+                     quote = "", stringsAsFactors = FALSE, check.names = FALSE,
+                     fill = TRUE, na.strings = c("", "NA")),
+          error = function(e) NULL
+        )
+        if (!is.null(bt_df) && nrow(bt_df) > 0 && "Tax" %in% colnames(bt_df)) {
+          # First column is "Bin ID"; match against current bin
+          bin_col <- colnames(bt_df)[1]
+          match_idx <- which(bt_df[[bin_col]] == bin)
+          if (length(match_idx) > 0) {
+            v <- bt_df[match_idx[1], "Tax"]
+            if (!is.na(v) && nzchar(trimws(as.character(v))))
+              taxonomy_raw <- trimws(as.character(v))
+          }
+        }
+      }
+    }
 
     # ── Coverage: columnas "Coverage <sample>" de proj$bins$table ────────────
     cov_block <- NULL
@@ -466,7 +496,7 @@
             tags$div("Generating pathway map for ",
                      tags$strong(magmap_pw_name() %||% magmap_pw_pid()), "\u2026"),
             tags$div(style = "margin-top:6px; font-size:0.78rem;",
-              "Green = present in MAG, grey = absent"))))
+              "Red = present in MAG, grey = absent"))))
       }
       if (s == "error") {
         return(tagList(back_btn,
@@ -561,8 +591,8 @@
                 box.style.top        = y + "px";
                 box.style.width      = w + "px";
                 box.style.height     = h + "px";
-                box.style.background = n.present === 1 ? "rgba(26,122,58,0.72)" : "rgba(180,180,180,0.65)";
-                box.style.border     = n.present === 1 ? "1px solid #0f5c2a" : "1px solid #999";
+                box.style.background = n.present === 1 ? "rgba(220,80,70,0.40)" : "rgba(200,200,200,0.30)";
+                box.style.border     = n.present === 1 ? "1px solid rgba(192,57,43,0.7)" : "1px solid rgba(160,160,160,0.6)";
                 box.style.boxSizing  = "border-box";
                 box.style.cursor     = "crosshair";
                 box.title            = n.tip;
@@ -591,7 +621,7 @@
         return(tagList(
           back_btn,
           tags$div(style = "font-size:0.78rem; color:var(--muted); margin-bottom:6px;",
-            tags$span(style = "display:inline-block; width:12px; height:12px; background:#1a7a3a; border-radius:2px; margin-right:4px; vertical-align:middle;"),
+            tags$span(style = "display:inline-block; width:12px; height:12px; background:#c0392b; border-radius:2px; margin-right:4px; vertical-align:middle;"),
             "Present in MAG  ",
             tags$span(style = "display:inline-block; width:12px; height:12px; background:#e8e8e8; border:1px solid #ccc; border-radius:2px; margin-right:4px; margin-left:10px; vertical-align:middle;"),
             "Absent"
