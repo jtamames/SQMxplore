@@ -9,6 +9,11 @@
 
   ANALYSIS_TABS <- c("Plots", "Tables", "Pathways", "Multivariate", "Comparison", "MAG Map")
 
+  # Hide all analysis tabs at startup, after UI is rendered, until a project loads
+  session$onFlushed(function() {
+    for (tab in ANALYSIS_TABS) nav_hide("main_navbar", tab)
+  }, once = TRUE)
+
 
   # ── Dynamic plot type selector ──
   output$plot_category_ui <- renderUI({
