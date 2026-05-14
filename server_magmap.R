@@ -328,9 +328,8 @@
     contamination <- get_val(row, "^Contamination$")
     size_bp       <- get_val(row, "^(Length|Size)$|^Length \\(bp\\)$")
     num_contigs   <- get_val(row, "^Num.*contigs?$|^Number of contigs$|^Contigs$")
-    # ── Taxonomy: read directly from 18.<project>.bintable file ──
-    # Format: tab-separated, first line is "# Created by ..." comment,
-    # second line is header, third col is "Tax" (semicolon-separated lineage).
+
+    # ── Read directly from 18.<project>.bintable file: Tax, Length, Num contigs ──
     taxonomy_raw <- NULL
     proj_dir <- tryCatch(path_project(), error = function(e) NULL)
     if (!is.null(proj_dir) && nzchar(proj_dir)) {
@@ -347,18 +346,77 @@
                      fill = TRUE, na.strings = c("", "NA")),
           error = function(e) NULL
         )
-        if (!is.null(bt_df) && nrow(bt_df) > 0 && "Tax" %in% colnames(bt_df)) {
-          # First column is "Bin ID"; match against current bin
+        if (!is.null(bt_df) && nrow(bt_df) > 0) {
           bin_col <- colnames(bt_df)[1]
           match_idx <- which(bt_df[[bin_col]] == bin)
           if (length(match_idx) > 0) {
-            v <- bt_df[match_idx[1], "Tax"]
-            if (!is.na(v) && nzchar(trimws(as.character(v))))
-              taxonomy_raw <- trimws(as.character(v))
+            r_bt <- bt_df[match_idx[1], , drop = FALSE]
+            if ("Tax" %in% colnames(r_bt)) {
+              v <- r_bt[["Tax"]]
+              if (!is.na(v) && nzchar(trimws(as.character(v))))
+                taxonomy_raw <- trimws(as.character(v))
+            }
+            # Length (size) — try several common column names
+            for (lc in c("Length", "Size", "Length (bp)")) {
+              if (lc %in% colnames(r_bt)) {
+                v <- suppressWarnings(as.numeric(r_bt[[lc]]))
+                if (!is.na(v) && v > 0) { size_bp <- v; break }
+              }
+            }
+            # Number of contigs
+            for (nc in c("Num contigs", "Number of contigs", "Contigs")) {
+              if (nc %in% colnames(r_bt)) {
+                v <- suppressWarnings(as.numeric(r_bt[[nc]]))
+                if (!is.na(v) && v > 0) { num_contigs <- v; break }
+              }
+            }
           }
         }
       }
     }
+
+    # ── Number of genes: count ORFs whose contig belongs to this bin ──────────
+    num_genes <- NULL
+    tryCatch({
+      ct <- proj$contigs$table
+      ot <- proj$orfs$table
+      if (!is.null(ct) && !is.null(ot)) {
+        # Find the bin-assignment column in contigs
+        bin_col_ct <- NA
+        for (cand in c("Bin ID", "Bin", "DAS", "bin", "Bin Name")) {
+          if (cand %in% colnames(ct)) { bin_col_ct <- cand; break }
+        }
+        if (!is.na(bin_col_ct)) {
+          # Bin names in contigs table may lack the .fa.contigs / .fa_sub.contigs suffix
+          # Try the full name first, then progressively stripped variants
+          bin_variants <- unique(c(
+            bin,
+            sub("\\.fa\\.contigs$",     "", bin),
+            sub("\\.fa_sub\\.contigs$", "", bin),
+            sub("\\.contigs$",          "", bin),
+            sub("\\.fa$",               "", bin)
+          ))
+          bin_contigs <- rownames(ct)[ct[[bin_col_ct]] %in% bin_variants]
+          if (length(bin_contigs) > 0) {
+            # Prefer the "Num genes" column already present in the contigs table
+            if ("Num genes" %in% colnames(ct)) {
+              num_genes <- sum(suppressWarnings(as.numeric(
+                ct[bin_contigs, "Num genes"])), na.rm = TRUE)
+            } else {
+              # Fall back to counting ORFs by contig
+              contig_col_ot <- NA
+              for (cand in c("Contig ID", "Contig", "contig")) {
+                if (cand %in% colnames(ot)) { contig_col_ot <- cand; break }
+              }
+              if (!is.na(contig_col_ot))
+                num_genes <- sum(ot[[contig_col_ot]] %in% bin_contigs)
+              else
+                num_genes <- sum(sub("_[0-9]+$", "", rownames(ot)) %in% bin_contigs)
+            }
+          }
+        }
+      }
+    }, error = function(e) NULL)
 
     # ── Coverage: columnas "Coverage <sample>" de proj$bins$table ────────────
     cov_block <- NULL
@@ -471,8 +529,9 @@
 
       stat_row("Completeness",  if (!is.null(completeness))  sprintf("%.1f%%", as.numeric(completeness))),
       stat_row("Contamination", if (!is.null(contamination)) sprintf("%.1f%%", as.numeric(contamination))),
-      stat_row("Size",          if (!is.null(size_bp))       as.numeric(size_bp)),
-      stat_row("Contigs",       if (!is.null(num_contigs))   as.numeric(num_contigs)),
+      stat_row("Size",          if (!is.null(size_bp))       sprintf("%.2f Mb", as.numeric(size_bp) / 1e6)),
+      stat_row("Contigs",       if (!is.null(num_contigs))   as.character(as.integer(num_contigs))),
+      stat_row("Genes",         if (!is.null(num_genes))     as.character(as.integer(num_genes))),
 
       taxonomy_block,
       cov_block
