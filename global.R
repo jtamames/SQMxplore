@@ -1,3 +1,6 @@
+cat("Starting app, please wait...\n")
+flush.console()
+
 library(shiny)
 library(shinyjs)
 library(shinyFiles)

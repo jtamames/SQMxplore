@@ -1,9 +1,17 @@
 ui <- page_navbar(
   id = "main_navbar",
-  title = tags$img(
-    src = paste0("data:image/png;base64,", WATERMELON_LOGO_B64),
-    height = "62px",
-    style = "margin: 2px 0;"
+  title = tags$div(
+    style = "display:flex; flex-direction:column; align-items:flex-start; line-height:1; gap:0;",
+    tags$img(
+      src = paste0("data:image/png;base64,", WATERMELON_LOGO_B64),
+      height = "62px",
+      style = "display:block;"
+    ),
+    tags$img(
+      src    = paste0("data:image/png;base64,", CSIC_LOGO_B64),
+      height = "30px",
+      style  = "display:block; opacity:0.9;"
+    )
   ),
   window_title = "Watermelon",
   theme = sqm_theme,
@@ -11,6 +19,12 @@ ui <- page_navbar(
   header = tagList(
     useShinyjs(),
     tags$head(tags$style(HTML(custom_css))),
+    tags$head(tags$style(HTML("
+      .navbar { padding-top: 0 !important; padding-bottom: 0 !important; min-height: 0 !important; }
+      .navbar-brand { padding-top: 0 !important; padding-bottom: 0 !important; max-height: 100px; overflow: hidden; display: flex; align-items: center; }
+      .navbar-brand > div { transform: none; }
+      .navbar .nav-link { font-size: 1.05rem !important; }
+    "))),
     tags$script(HTML("document.body.classList.add('sqm-no-project');")),
     tags$script(tooltip_init_js)
   ),
@@ -420,7 +434,7 @@ nav_panel("Load",
       )
     )
   ),
-  nav_panel("MAG Map",
+  nav_panel("MAGs", value = "MAG Map",
     layout_sidebar(
       sidebar = sidebar(width = 290,
         tags$div(class = "sidebar-box",
@@ -504,12 +518,5 @@ nav_panel("Load",
       )
     )
   ),
-  nav_spacer(),
-  nav_item(
-    tags$img(
-      src    = paste0("data:image/png;base64,", CSIC_LOGO_B64),
-      height = "58px",
-      style  = "margin: 2px 12px 2px 0; opacity:0.92;"
-    )
-  )
+  nav_spacer()
 )
