@@ -61,7 +61,8 @@ echo "[2/3] Installing R packages from CRAN..."
 Rscript -e "
   repos <- 'https://cran.rstudio.com/'
   pkgs <- c('shiny', 'shinyjs', 'shinyFiles', 'bslib', 'DT', 'plotly',
-            'SQMtools', 'vegan', 'ggplot2', 'htmlwidgets', 'xml2', 'processx', 'httr', 'jsonlite')
+            'SQMtools', 'vegan', 'ggplot2', 'htmlwidgets', 'xml2', 'processx', 'httr', 'jsonlite',
+            'base64enc', 'png')
   missing <- pkgs[!sapply(pkgs, requireNamespace, quietly = TRUE)]
   if (length(missing) > 0) {
     cat('  Installing:', paste(missing, collapse=', '), '\n')
