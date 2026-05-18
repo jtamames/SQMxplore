@@ -1231,7 +1231,133 @@
     )
   })
 
-  # ── Observer: pathway header clicked → render pathview for that MAG ──────────
+  # Category selector for the comparative view — grouped like the cell figure
+  output$magmap_comp_category_ui <- renderUI({
+    # Section → category names (must match keys in MAG_MAP_CATEGORIES)
+    sections <- list(
+      "Central Carbon Metabolism" = c("Glycolysis", "Pentose Phosphate\nPathway",
+        "Entner-Doudoroff\nPathway", "TCA Cycle", "CO2 Fixation", "Fermentation"),
+      "N, S and CH4 Metabolism"   = c("Nitrogen\nFixation", "Assimilatory N",
+        "Denitrification", "Sulfur Cycle", "Nitrification", "Methane\nMetabolism"),
+      "Biosynthesis / Anabolism"  = c("Amino Acids", "Nucleotides",
+        "Vitamins /\nCofactors", "Fatty Acids", "Cell Wall"),
+      "Respiration / Energy"      = c("ETC", "ATP Synthase",
+        "Oxidative\nPhosphorylation", "Anaerobic\nRespiration", "Photosynthesis"),
+      "Transporters / Systems"    = c("ABC\nTransporters", "Sec / Tat\nSystems",
+        "Efflux\nPumps", "Motility", "CRISPR", "Stress\nResponse")
+    )
+    # Build a nested choices list: only keep categories that exist and have a
+    # central KO list. selectInput renders nested lists as <optgroup>s.
+    grouped <- list()
+    for (sec in names(sections)) {
+      cats <- sections[[sec]]
+      cats <- cats[vapply(cats, function(cn)
+        !is.null(MAG_MAP_CATEGORIES[[cn]]) &&
+        length(MAG_MAP_CATEGORIES[[cn]]$kos_central) > 0, logical(1))]
+      if (length(cats) == 0) next
+      grouped[[sec]] <- setNames(as.list(cats), gsub("\n", " ", cats))
+    }
+    first_cat <- if (length(grouped) > 0) grouped[[1]][[1]] else NULL
+    selectInput("magmap_comp_category", NULL, choices = grouped,
+                selected = first_cat)
+  })
+
+  # ── Comparative table: presence/absence of central KOs across all MAGs ──────
+  # Rows = genes (KOs), Columns = MAGs
+  output$magmap_comparative_ui <- renderUI({
+    req(input$magmap_view_select == "comparative")
+    proj <- sqm_data()
+    if (is.null(proj))
+      return(tags$div(style = "padding:2rem; color:var(--muted); font-size:0.85rem;",
+        "Load a SQM project with binning first."))
+    bins <- tryCatch(rownames(proj$bins$table), error = function(e) NULL)
+    if (is.null(bins) || length(bins) == 0)
+      return(tags$div(style = "padding:2rem; color:var(--muted); font-size:0.85rem;",
+        "No MAGs found in this project."))
+
+    cat_name <- input$magmap_comp_category
+    req(cat_name, cat_name %in% names(MAG_MAP_CATEGORIES))
+    cat_kos <- sort(unique(MAG_MAP_CATEGORIES[[cat_name]]$kos_central))
+    if (length(cat_kos) == 0)
+      return(tags$div(style = "padding:2rem; color:var(--muted); font-size:0.85rem;",
+        "No central KO list for this category."))
+    cat_label <- gsub("\n", " ", cat_name)
+
+    # KO sets per MAG (computed once)
+    bin_kos <- lapply(bins, function(b)
+      tryCatch(get_bin_kos(proj, b), error = function(e) character(0)))
+    names(bin_kos) <- bins
+
+    short_bin <- function(b) sub("\\.fa.*$", "", b)
+
+    # KO function-name lookup
+    ko_label <- function(ko) {
+      if (exists("KEGG_NAMES") && !is.null(KEGG_NAMES) && ko %in% names(KEGG_NAMES)) {
+        nm <- as.character(KEGG_NAMES[[ko]])
+        if (length(nm) && !is.na(nm) && nzchar(nm)) return(nm)
+      }
+      ""
+    }
+
+    # Header: one column per MAG (vertical labels), fixed width to match cells
+    header_cells <- paste0(
+      '<th title="', vapply(bins, function(b) htmltools::htmlEscape(b, attribute = TRUE), character(1)),
+      '" style="padding:0; width:22px; min-width:22px; max-width:22px; font-size:0.66rem; ',
+      'writing-mode:vertical-rl; text-orientation:mixed; white-space:nowrap; ',
+      'border-bottom:1px solid var(--border); height:120px; vertical-align:bottom; text-align:center;">',
+      vapply(bins, function(b) htmltools::htmlEscape(short_bin(b)), character(1)),
+      '</th>', collapse = "")
+
+    # One row per gene (KO)
+    body_rows <- vapply(cat_kos, function(ko) {
+      fn_name  <- ko_label(ko)
+      fn_full  <- if (nzchar(fn_name)) fn_name else "(no annotation available)"
+      ko_tip   <- htmltools::htmlEscape(paste0(ko, " — ", fn_full), attribute = TRUE)
+      cells <- paste0(
+        vapply(bins, function(b) {
+          is_pres <- ko %in% bin_kos[[b]]
+          status  <- if (is_pres) "present" else "absent"
+          tip <- htmltools::htmlEscape(
+            paste0(ko, " — ", fn_full, "\n", short_bin(b), "\n", status),
+            attribute = TRUE)
+          bg  <- if (is_pres) "#c0392b" else "#f0f0f0"
+          sprintf('<td title="%s" style="background:%s; border:1px solid #fff; width:22px; min-width:22px; max-width:22px; height:18px; padding:0;"></td>',
+                  tip, bg)
+        }, character(1)),
+        collapse = "")
+      n_pres  <- sum(vapply(bins, function(b) ko %in% bin_kos[[b]], logical(1)))
+      sprintf(
+        '<tr><td title="%s" style="padding:2px 6px; font-size:0.72rem; font-family:monospace; white-space:nowrap;">%s</td><td title="%s" style="padding:2px 8px; font-size:0.72rem; white-space:nowrap; max-width:240px; overflow:hidden; text-overflow:ellipsis;">%s</td>%s<td style="padding:2px 8px; font-size:0.72rem; color:var(--muted); text-align:center;">%d/%d</td></tr>',
+        ko_tip, htmltools::htmlEscape(ko),
+        ko_tip, htmltools::htmlEscape(fn_name),
+        cells, n_pres, length(bins))
+    }, character(1))
+
+    tags$div(style = "padding:8px 4px;",
+      tags$div(style = "font-weight:600; font-size:1rem; margin-bottom:4px; color:#1a3a6b;",
+        cat_label,
+        tags$span(style = "font-weight:400; color:var(--muted); font-size:0.82rem; margin-left:8px;",
+          sprintf("%d genes \u00d7 %d MAGs (central KO set)", length(cat_kos), length(bins)))),
+      tags$div(style = "font-size:0.8rem; color:var(--muted); margin-bottom:12px;",
+        tags$span(style = "display:inline-block; width:12px; height:12px; background:#c0392b; border-radius:2px; margin-right:4px; vertical-align:middle;"),
+        "Gene present  ",
+        tags$span(style = "display:inline-block; width:12px; height:12px; background:#f0f0f0; border:1px solid #ccc; border-radius:2px; margin-right:4px; margin-left:10px; vertical-align:middle;"),
+        "Gene absent"),
+      tags$div(style = "overflow-x:auto; width:100%;",
+        HTML(paste0(
+          '<table style="border-collapse:collapse; table-layout:fixed; width:max-content;">',
+          '<thead><tr>',
+          '<th style="border-bottom:1px solid var(--border); text-align:left; padding:2px 6px;">KO</th>',
+          '<th style="border-bottom:1px solid var(--border); text-align:left; padding:2px 8px;">Function</th>',
+          header_cells,
+          '<th style="border-bottom:1px solid var(--border); padding:2px 8px;">Present</th>',
+          '</tr></thead>',
+          '<tbody>', paste(body_rows, collapse = ""), '</tbody>',
+          '</table>'))
+      )
+    )
+  })
+
   observeEvent(input$magmap_pw_clicked, {
     v <- input$magmap_pw_clicked
     req(!is.null(v), nzchar(v$pid))

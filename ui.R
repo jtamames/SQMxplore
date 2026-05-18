@@ -427,30 +427,59 @@ nav_panel("Load",
     layout_sidebar(
       sidebar = sidebar(width = 290,
         tags$div(class = "sidebar-box",
-          help_label("MAG", "Select a MAG to visualise its metabolic completeness on the diagram. Requires a full SQM project with KEGG annotation and binning."),
-          uiOutput("magmap_bin_select_ui")
+          help_label("View",
+            "Single MAG: explore one MAG's metabolic completeness on the diagram. Comparative table: presence/absence of category genes across all MAGs."),
+          radioButtons("magmap_view_select", NULL,
+            choices = c("Single MAG" = "single", "Comparative table" = "comparative"),
+            selected = "single")
         ),
-        tags$div(class = "sidebar-box",
-          help_label("KO list",
-            "Extended: all KOs in the KEGG pathways assigned to each category. Central: curated set of diagnostic / canonical KOs for each pathway."),
-          radioButtons("magmap_ko_mode", NULL,
-            choices = c("Extended" = "extended", "Central" = "central"),
-            selected = "extended", inline = TRUE)
+        conditionalPanel(
+          condition = "input.magmap_view_select != 'comparative'",
+          tags$div(class = "sidebar-box",
+            help_label("MAG", "Select a MAG to visualise its metabolic completeness on the diagram. Requires a full SQM project with KEGG annotation and binning."),
+            uiOutput("magmap_bin_select_ui")
+          ),
+          tags$div(class = "sidebar-box",
+            help_label("KO list",
+              "Extended: all KOs in the KEGG pathways assigned to each category. Central: curated set of diagnostic / canonical KOs for each pathway."),
+            radioButtons("magmap_ko_mode", NULL,
+              choices = c("Extended" = "extended", "Central" = "central"),
+              selected = "extended", inline = TRUE)
+          ),
+          tags$hr(class = "section-divider"),
+          uiOutput("magmap_selected_ui")
         ),
-        tags$hr(class = "section-divider"),
-        uiOutput("magmap_selected_ui")
+        conditionalPanel(
+          condition = "input.magmap_view_select == 'comparative'",
+          tags$div(class = "sidebar-box",
+            help_label("Category",
+              "Choose which metabolic category to compare across all MAGs."),
+            uiOutput("magmap_comp_category_ui")
+          ),
+          tags$div(class = "sidebar-box",
+            tags$div(style = "font-size:0.8rem; color:var(--muted);",
+              "Presence/absence of the central (curated) KO set for the selected category, across all MAGs in the project.")
+          )
+        )
       ),
       tags$div(
-        card(
-          card_header(
-            help_label("Metabolic Map",
-              "The diagram shows major metabolic categories. Blue bar overlay indicates the completeness of each category based on KEGG KOs present in the selected MAG. Hover for details, click a category to see KO detail below.")
+        conditionalPanel(
+          condition = "input.magmap_view_select != 'comparative'",
+          card(
+            card_header(
+              help_label("Metabolic Map",
+                "The diagram shows major metabolic categories. Blue bar overlay indicates the completeness of each category based on KEGG KOs present in the selected MAG. Hover for details, click a category to see KO detail below.")
+            ),
+            card_body(class = "p-2",
+              uiOutput("magmap_view_ui")
+            )
           ),
-          card_body(class = "p-2",
-            uiOutput("magmap_view_ui")
-          )
+          uiOutput("magmap_detail_ui")
         ),
-        uiOutput("magmap_detail_ui")
+        conditionalPanel(
+          condition = "input.magmap_view_select == 'comparative'",
+          uiOutput("magmap_comparative_ui")
+        )
       )
     )
   ),
