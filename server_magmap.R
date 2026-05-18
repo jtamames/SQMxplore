@@ -384,16 +384,20 @@
     if (is.null(bins) || length(bins) == 0)
       return(tags$div(style = "font-size:0.8rem; color:var(--muted);",
         "No MAGs found in this project."))
-    selectInput("magmap_bin", NULL, choices = c("— select a MAG —" = "", bins))
+    selectInput("magmap_bin", NULL, choices = c("— select a MAG —" = "", bins),
+                selected = isolate(magmap_selected_bin()) %||% "")
   })
 
   observeEvent(input$magmap_bin, {
     v <- input$magmap_bin
     magmap_selected_bin(if (nzchar(v)) v else NULL)
+    # Keep the keggmap-mode selector in sync
+    if (!identical(isolate(input$magmap_bin2), v))
+      updateSelectInput(session, "magmap_bin2", selected = v)
   })
 
-  # Sidebar info panel
-  output$magmap_selected_ui <- renderUI({
+  # Sidebar info panel — shared by diagram & keggmap modes
+  magmap_selected_panel <- function() {
     bin <- magmap_selected_bin()
     if (is.null(bin))
       return(tags$div(style = "font-size:0.8rem; color:var(--muted);",
@@ -644,7 +648,153 @@
       taxonomy_block,
       cov_block
     )
-  })
+  }
+  output$magmap_selected_ui  <- renderUI({ magmap_selected_panel() })
+  output$magmap_selected_ui2 <- renderUI({ magmap_selected_panel() })
+
+
+  # Reusable renderer for the pathview pathway view (used by both the
+  # single-MAG view and the KEGG-map browser). Returns a tagList; the
+  # caller adds a Back button if needed.
+  magmap_render_pathway_view <- function() {
+          img_path  <- magmap_pw_img();  req(img_path, file.exists(img_path))
+          nodes     <- magmap_pw_nodes()
+          res_name  <- paste0("magmap_pw_", magmap_pw_pid())
+          addResourcePath(res_name, dirname(img_path))
+          img_src   <- paste0(res_name, "/", basename(img_path))
+          bin       <- magmap_selected_bin() %||% ""
+          mag_kos   <- tryCatch(get_bin_kos(sqm_data(), bin), error = function(e) character(0))
+          kegg_names <- tryCatch(sqm_data()$misc$KEGG_names, error = function(e) NULL)
+  
+          # Tooltip CSS + div (reuse pw- id so same JS works)
+          tooltip_css <- tags$style(HTML("
+            #pw-tooltip {
+              position:fixed; pointer-events:none; z-index:9999;
+              background:rgba(20,30,50,0.92); color:#f0f4f8;
+              padding:5px 9px; border-radius:5px; font-size:0.75rem;
+              max-width:320px; line-height:1.4; display:none;
+              box-shadow:0 2px 8px rgba(0,0,0,0.3); white-space:pre-wrap; word-break:break-word;
+            }
+          "))
+          tooltip_div <- tags$div(id = "pw-tooltip")
+          tooltip_js  <- tags$script(HTML("
+            (function() {
+              var tip = document.getElementById('pw-tooltip');
+              if (!tip) return;
+              document.addEventListener('mousemove', function(e) {
+                tip.style.left = (e.clientX + 14) + 'px';
+                tip.style.top  = (e.clientY + 14) + 'px';
+              });
+            })();
+            function pwShowTip(el) {
+              var tip = document.getElementById('pw-tooltip');
+              if (tip) { tip.textContent = el.getAttribute('data-tip'); tip.style.display='block'; }
+            }
+            function pwHideTip() {
+              var tip = document.getElementById('pw-tooltip');
+              if (tip) tip.style.display='none';
+            }
+          "))
+  
+          # Build node JSON — same structure as server_pathways.R
+          # Resolve KO function names from KEGG_NAMES (master DB, has all KOs)
+          # with fallback to the project's own KEGG_names.
+          node_json <- if (!is.null(nodes) && nrow(nodes) > 0) {
+            name_for_ko <- function(ko) {
+              if (exists("KEGG_NAMES") && !is.null(KEGG_NAMES) && ko %in% names(KEGG_NAMES)) {
+                nm <- as.character(KEGG_NAMES[[ko]])
+                if (length(nm) && !is.na(nm) && nzchar(nm)) return(nm)
+              }
+              if (!is.null(kegg_names) && ko %in% names(kegg_names)) {
+                nm <- as.character(kegg_names[[ko]])
+                if (length(nm) && !is.na(nm) && nzchar(nm)) return(nm)
+              }
+              NA_character_
+            }
+            node_list <- lapply(seq_len(nrow(nodes)), function(i) {
+              r      <- nodes[i, ]
+              ko_ids <- unique(sub("^ko:", "", trimws(unlist(strsplit(r$ko_names, "[[:space:]]+")))))
+              ko_ids <- ko_ids[grepl("^K[0-9]{5}$", ko_ids)]
+              nms    <- unique(na.omit(vapply(ko_ids, name_for_ko, character(1))))
+              ko_str   <- paste(ko_ids, collapse = ", ")
+              name_str <- if (length(nms) > 0) paste(nms, collapse = " / ")
+                          else "(no annotation available)"
+              present  <- as.integer(any(ko_ids %in% mag_kos))
+              tip <- paste0(ko_str, "\n", name_str, "\n\u2014 ",
+                            if (present == 1L) "PRESENT" else "absent")
+              list(x = r$x, y = r$y, w = r$w, h = r$h, tip = tip, present = present)
+            })
+            jsonlite::toJSON(node_list, auto_unbox = TRUE)
+          } else "[]"
+  
+          map_id <- "magmap_pwmap"
+          img_tag <- tags$div(
+            id = paste0(map_id, "_wrap"),
+            style = "position:relative; display:inline-block; width:100%;",
+            tags$img(src = img_src, id = map_id,
+              style = "max-width:100%; display:block; border:1px solid var(--border); border-radius:6px;",
+              alt = "KEGG pathway")
+          )
+          overlay_js <- tags$script(HTML(sprintf('
+            (function() {
+              var nodes  = %s;
+              var img    = document.getElementById("%s");
+              var wrap   = document.getElementById("%s_wrap");
+              function placeBoxes() {
+                // Remove old boxes
+                wrap.querySelectorAll(".magmap-box").forEach(function(el) { el.remove(); });
+                var scaleX = img.offsetWidth  / img.naturalWidth;
+                var scaleY = img.offsetHeight / img.naturalHeight;
+                for (var i = 0; i < nodes.length; i++) {
+                  var n = nodes[i];
+                  var x = (n.x - n.w / 2) * scaleX;
+                  var y = (n.y - n.h / 2) * scaleY;
+                  var w = n.w * scaleX;
+                  var h = n.h * scaleY;
+                  var box = document.createElement("div");
+                  box.className = "magmap-box";
+                  box.style.position   = "absolute";
+                  box.style.left       = x + "px";
+                  box.style.top        = y + "px";
+                  box.style.width      = w + "px";
+                  box.style.height     = h + "px";
+                  box.style.background = n.present === 1 ? "rgba(220,80,70,0.40)" : "rgba(200,200,200,0.30)";
+                  box.style.border     = n.present === 1 ? "1px solid rgba(192,57,43,0.7)" : "1px solid rgba(160,160,160,0.6)";
+                  box.style.boxSizing  = "border-box";
+                  box.style.cursor     = "crosshair";
+                  (function(tip) {
+                    box.addEventListener("mouseenter", function() {
+                      var el = document.getElementById("pw-tooltip");
+                      if (el) { el.textContent = tip; el.style.display = "block"; }
+                    });
+                    box.addEventListener("mouseleave", function() {
+                      var el = document.getElementById("pw-tooltip");
+                      if (el) el.style.display = "none";
+                    });
+                  })(n.tip);
+                  wrap.appendChild(box);
+                }
+              }
+              if (img.complete && img.naturalWidth > 0) { placeBoxes(); }
+              else { img.addEventListener("load", placeBoxes); }
+              window.addEventListener("resize", placeBoxes);
+              if (window.ResizeObserver) {
+                new ResizeObserver(placeBoxes).observe(img);
+              }
+            })();
+          ', node_json, map_id, map_id)))
+  
+          return(tagList(
+            tags$div(style = "font-size:0.78rem; color:var(--muted); margin-bottom:6px;",
+              tags$span(style = "display:inline-block; width:12px; height:12px; background:#c0392b; border-radius:2px; margin-right:4px; vertical-align:middle;"),
+              "Present in MAG  ",
+              tags$span(style = "display:inline-block; width:12px; height:12px; background:#e8e8e8; border:1px solid #ccc; border-radius:2px; margin-right:4px; margin-left:10px; vertical-align:middle;"),
+              "Absent"
+            ),
+            tooltip_css, tooltip_div, tooltip_js,
+            img_tag, overlay_js
+          ))
+  }
 
   # Main view: BacMet image + SVG overlay (coloured rects + % labels)
   # OR pathview pathway diagram when magmap_view_mode() == "pathway"
@@ -672,144 +822,7 @@
             tags$div("Pathway generation failed."))))
       }
       if (s == "ready") {
-        img_path  <- magmap_pw_img();  req(img_path, file.exists(img_path))
-        nodes     <- magmap_pw_nodes()
-        res_name  <- paste0("magmap_pw_", magmap_pw_pid())
-        addResourcePath(res_name, dirname(img_path))
-        img_src   <- paste0(res_name, "/", basename(img_path))
-        bin       <- magmap_selected_bin() %||% ""
-        mag_kos   <- tryCatch(get_bin_kos(sqm_data(), bin), error = function(e) character(0))
-        kegg_names <- tryCatch(sqm_data()$misc$KEGG_names, error = function(e) NULL)
-
-        # Tooltip CSS + div (reuse pw- id so same JS works)
-        tooltip_css <- tags$style(HTML("
-          #pw-tooltip {
-            position:fixed; pointer-events:none; z-index:9999;
-            background:rgba(20,30,50,0.92); color:#f0f4f8;
-            padding:5px 9px; border-radius:5px; font-size:0.75rem;
-            max-width:320px; line-height:1.4; display:none;
-            box-shadow:0 2px 8px rgba(0,0,0,0.3); white-space:pre-wrap; word-break:break-word;
-          }
-        "))
-        tooltip_div <- tags$div(id = "pw-tooltip")
-        tooltip_js  <- tags$script(HTML("
-          (function() {
-            var tip = document.getElementById('pw-tooltip');
-            if (!tip) return;
-            document.addEventListener('mousemove', function(e) {
-              tip.style.left = (e.clientX + 14) + 'px';
-              tip.style.top  = (e.clientY + 14) + 'px';
-            });
-          })();
-          function pwShowTip(el) {
-            var tip = document.getElementById('pw-tooltip');
-            if (tip) { tip.textContent = el.getAttribute('data-tip'); tip.style.display='block'; }
-          }
-          function pwHideTip() {
-            var tip = document.getElementById('pw-tooltip');
-            if (tip) tip.style.display='none';
-          }
-        "))
-
-        # Build node JSON — same structure as server_pathways.R
-        # Resolve KO function names from KEGG_NAMES (master DB, has all KOs)
-        # with fallback to the project's own KEGG_names.
-        node_json <- if (!is.null(nodes) && nrow(nodes) > 0) {
-          name_for_ko <- function(ko) {
-            if (exists("KEGG_NAMES") && !is.null(KEGG_NAMES) && ko %in% names(KEGG_NAMES)) {
-              nm <- as.character(KEGG_NAMES[[ko]])
-              if (length(nm) && !is.na(nm) && nzchar(nm)) return(nm)
-            }
-            if (!is.null(kegg_names) && ko %in% names(kegg_names)) {
-              nm <- as.character(kegg_names[[ko]])
-              if (length(nm) && !is.na(nm) && nzchar(nm)) return(nm)
-            }
-            NA_character_
-          }
-          node_list <- lapply(seq_len(nrow(nodes)), function(i) {
-            r      <- nodes[i, ]
-            ko_ids <- unique(sub("^ko:", "", trimws(unlist(strsplit(r$ko_names, "[[:space:]]+")))))
-            ko_ids <- ko_ids[grepl("^K[0-9]{5}$", ko_ids)]
-            nms    <- unique(na.omit(vapply(ko_ids, name_for_ko, character(1))))
-            ko_str   <- paste(ko_ids, collapse = ", ")
-            name_str <- if (length(nms) > 0) paste(nms, collapse = " / ")
-                        else "(no annotation available)"
-            present  <- as.integer(any(ko_ids %in% mag_kos))
-            tip <- paste0(ko_str, "\n", name_str, "\n\u2014 ",
-                          if (present == 1L) "PRESENT" else "absent")
-            list(x = r$x, y = r$y, w = r$w, h = r$h, tip = tip, present = present)
-          })
-          jsonlite::toJSON(node_list, auto_unbox = TRUE)
-        } else "[]"
-
-        map_id <- "magmap_pwmap"
-        img_tag <- tags$div(
-          id = paste0(map_id, "_wrap"),
-          style = "position:relative; display:inline-block; width:100%;",
-          tags$img(src = img_src, id = map_id,
-            style = "max-width:100%; display:block; border:1px solid var(--border); border-radius:6px;",
-            alt = "KEGG pathway")
-        )
-        overlay_js <- tags$script(HTML(sprintf('
-          (function() {
-            var nodes  = %s;
-            var img    = document.getElementById("%s");
-            var wrap   = document.getElementById("%s_wrap");
-            function placeBoxes() {
-              // Remove old boxes
-              wrap.querySelectorAll(".magmap-box").forEach(function(el) { el.remove(); });
-              var scaleX = img.offsetWidth  / img.naturalWidth;
-              var scaleY = img.offsetHeight / img.naturalHeight;
-              for (var i = 0; i < nodes.length; i++) {
-                var n = nodes[i];
-                var x = (n.x - n.w / 2) * scaleX;
-                var y = (n.y - n.h / 2) * scaleY;
-                var w = n.w * scaleX;
-                var h = n.h * scaleY;
-                var box = document.createElement("div");
-                box.className = "magmap-box";
-                box.style.position   = "absolute";
-                box.style.left       = x + "px";
-                box.style.top        = y + "px";
-                box.style.width      = w + "px";
-                box.style.height     = h + "px";
-                box.style.background = n.present === 1 ? "rgba(220,80,70,0.40)" : "rgba(200,200,200,0.30)";
-                box.style.border     = n.present === 1 ? "1px solid rgba(192,57,43,0.7)" : "1px solid rgba(160,160,160,0.6)";
-                box.style.boxSizing  = "border-box";
-                box.style.cursor     = "crosshair";
-                (function(tip) {
-                  box.addEventListener("mouseenter", function() {
-                    var el = document.getElementById("pw-tooltip");
-                    if (el) { el.textContent = tip; el.style.display = "block"; }
-                  });
-                  box.addEventListener("mouseleave", function() {
-                    var el = document.getElementById("pw-tooltip");
-                    if (el) el.style.display = "none";
-                  });
-                })(n.tip);
-                wrap.appendChild(box);
-              }
-            }
-            if (img.complete && img.naturalWidth > 0) { placeBoxes(); }
-            else { img.addEventListener("load", placeBoxes); }
-            window.addEventListener("resize", placeBoxes);
-            if (window.ResizeObserver) {
-              new ResizeObserver(placeBoxes).observe(img);
-            }
-          })();
-        ', node_json, map_id, map_id)))
-
-        return(tagList(
-          back_btn,
-          tags$div(style = "font-size:0.78rem; color:var(--muted); margin-bottom:6px;",
-            tags$span(style = "display:inline-block; width:12px; height:12px; background:#c0392b; border-radius:2px; margin-right:4px; vertical-align:middle;"),
-            "Present in MAG  ",
-            tags$span(style = "display:inline-block; width:12px; height:12px; background:#e8e8e8; border:1px solid #ccc; border-radius:2px; margin-right:4px; margin-left:10px; vertical-align:middle;"),
-            "Absent"
-          ),
-          tooltip_css, tooltip_div, tooltip_js,
-          img_tag, overlay_js
-        ))
+        return(tagList(back_btn, magmap_render_pathway_view()))
       }
       return(tagList(back_btn))
     }
@@ -1356,6 +1369,150 @@
           '</table>'))
       )
     )
+  })
+
+  # ── KEGG map mode: MAG selector (writes to the shared magmap_selected_bin) ──
+  output$magmap_bin_select_ui2 <- renderUI({
+    proj <- sqm_data()
+    if (is.null(proj))
+      return(tags$div(style = "font-size:0.8rem; color:var(--muted);",
+        "Load a SQM project with binning first."))
+    bins <- tryCatch(rownames(proj$bins$table), error = function(e) NULL)
+    if (is.null(bins) || length(bins) == 0)
+      return(tags$div(style = "font-size:0.8rem; color:var(--muted);",
+        "No MAGs found in this project."))
+    selectInput("magmap_bin2", NULL, choices = c("— select a MAG —" = "", bins),
+                selected = isolate(magmap_selected_bin()) %||% "")
+  })
+
+  observeEvent(input$magmap_bin2, {
+    v <- input$magmap_bin2
+    magmap_selected_bin(if (nzchar(v)) v else NULL)
+    # Keep the diagram-mode selector in sync
+    if (!identical(isolate(input$magmap_bin), v))
+      updateSelectInput(session, "magmap_bin", selected = v)
+  })
+
+  # Switching the single-MAG sub-mode resets the pathway view back to the
+  # cell diagram, so returning to "Metabolism diagram" shows it fresh.
+  observeEvent(input$magmap_single_mode, {
+    magmap_view_mode("map")
+    magmap_pw_status("idle")
+  }, ignoreInit = TRUE)
+
+  # ── KEGG map mode: collapsible KEGG pathway tree (same style as Pathways) ──
+  output$magmap_kegg_select_ui <- renderUI({
+    if (is.null(sqm_data()))
+      return(tags$div(style = "font-size:0.78rem; color:var(--muted); padding:4px 0;",
+        "Load a project to browse pathways."))
+
+    search_box <- tags$input(
+      id = "magmap_kegg_search", type = "text",
+      placeholder = "Search pathway\u2026",
+      oninput = "filterMagmapKeggTree(this.value)",
+      style = paste0(
+        "width:100%; box-sizing:border-box; padding:3px 6px;",
+        "font-size:0.78rem; border:1px solid var(--border);",
+        "border-radius:4px; margin-bottom:6px;",
+        "background:var(--surface); color:var(--text);"))
+
+    KEGG_HIERARCHY_EXCL_L2 <- "1.0 Global and overview maps"
+    tree_items <- lapply(names(KEGG_HIERARCHY), function(l1) {
+      l2_items <- lapply(names(KEGG_HIERARCHY[[l1]]), function(l2) {
+        if (l2 %in% KEGG_HIERARCHY_EXCL_L2) return(NULL)
+        pathways <- KEGG_HIERARCHY[[l1]][[l2]]
+        pw_links <- lapply(pathways, function(pw) {
+          tags$div(
+            class = "mkpw-item",
+            "data-name" = tolower(paste(pw$name, pw$id)),
+            style = "padding:2px 4px 2px 8px; cursor:pointer; font-size:0.75rem; border-radius:3px;",
+            onclick = sprintf(
+              "event.stopPropagation(); Shiny.setInputValue('magmap_pw_clicked',{pid:'%s',name:'%s',ts:Date.now()},{priority:'event'}); document.querySelectorAll('.mkpw-item').forEach(function(el){el.style.background=''}); this.style.background='var(--accent-light)';",
+              pw$id, gsub("'", "\\\\'", pw$name)),
+            tags$span(style="color:var(--muted); margin-right:4px; font-family:monospace;", pw$id),
+            pw$name
+          )
+        })
+        tags$details(
+          style = "margin-left:8px;",
+          tags$summary(
+            style = paste0(
+              "font-size:0.75rem; font-weight:600; color:var(--muted);",
+              "cursor:pointer; padding:2px 2px; list-style:none;",
+              "display:flex; align-items:center; gap:4px;"),
+            tags$span(class="mkpw-chevron", style="font-size:0.6rem;", "\u25b6"),
+            l2
+          ),
+          pw_links
+        )
+      })
+      l2_items <- Filter(Negate(is.null), l2_items)
+      tags$details(
+        open = NA,
+        style = "margin-bottom:2px;",
+        tags$summary(
+          style = paste0(
+            "font-size:0.8rem; font-weight:700; color:var(--text);",
+            "cursor:pointer; padding:3px 2px; list-style:none;",
+            "display:flex; align-items:center; gap:4px;",
+            "border-bottom:1px solid var(--border);"),
+          tags$span(class="mkpw-chevron", style="font-size:0.65rem;", "\u25b6"),
+          l1
+        ),
+        l2_items
+      )
+    })
+
+    tree_css <- tags$style(HTML(
+      "details[open] > summary .mkpw-chevron { transform: rotate(90deg); }
+       .mkpw-item:hover { background: var(--accent-light) !important; }"
+    ))
+    search_js <- tags$script(HTML(
+      "function filterMagmapKeggTree(q) {
+        q = q.toLowerCase().trim();
+        document.querySelectorAll('.mkpw-item').forEach(function(el) {
+          var match = !q || el.getAttribute('data-name').includes(q);
+          el.style.display = match ? '' : 'none';
+        });
+        document.querySelectorAll('#magmap_kegg_tree details').forEach(function(d) {
+          var vis = Array.from(d.querySelectorAll('.mkpw-item')).some(function(el) {
+            return el.style.display !== 'none';
+          });
+          d.style.display = vis ? '' : 'none';
+          if (q && vis) d.open = true;
+        });
+      }"
+    ))
+
+    tags$div(
+      tree_css, search_js, search_box,
+      tags$div(id = "magmap_kegg_tree",
+        style = "max-height:340px; overflow-y:auto; border:1px solid var(--border); border-radius:4px; padding:4px;",
+        tree_items)
+    )
+  })
+
+  # ── KEGG map mode: the rendered pathway view (reuses the pathview machinery) ──
+  output$magmap_keggmap_view_ui <- renderUI({
+    bin <- magmap_selected_bin()
+    if (is.null(bin))
+      return(tags$div(style = "padding:2rem; color:var(--muted); font-size:0.85rem; text-align:center;",
+        "Select a MAG and a KEGG pathway from the panel on the left."))
+    s <- magmap_pw_status()
+    if (s == "idle" || is.null(magmap_pw_pid()))
+      return(tags$div(style = "padding:2rem; color:var(--muted); font-size:0.85rem; text-align:center;",
+        "Pick a KEGG pathway from the tree on the left to render it."))
+    if (s == "generating")
+      return(tags$div(style = "color:var(--muted); font-size:0.85rem; padding:2rem; text-align:center;",
+        tags$div(style = "font-size:1.5rem; margin-bottom:8px;", "\u25cc"),
+        tags$div("Generating pathway map for ",
+                 tags$strong(magmap_pw_name() %||% magmap_pw_pid()), "\u2026")))
+    if (s == "error")
+      return(tags$div(style = "color:#c0392b; font-size:0.85rem; padding:2rem; text-align:center;",
+        tags$div(style = "font-size:1.5rem;", "\u2715"),
+        tags$div("Pathway generation failed.")))
+    # s == "ready": reuse the exact same renderer as the single-MAG pathway view
+    magmap_render_pathway_view()
   })
 
   observeEvent(input$magmap_pw_clicked, {

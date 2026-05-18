@@ -428,13 +428,36 @@ nav_panel("Load",
       sidebar = sidebar(width = 290,
         tags$div(class = "sidebar-box",
           help_label("View",
-            "Single MAG: explore one MAG's metabolic completeness on the diagram. Comparative table: presence/absence of category genes across all MAGs."),
+            "Single MAG: explore one MAG (cell diagram or KEGG pathway maps). Comparative table: presence/absence of category genes across all MAGs."),
           radioButtons("magmap_view_select", NULL,
             choices = c("Single MAG" = "single", "Comparative table" = "comparative"),
             selected = "single")
         ),
         conditionalPanel(
           condition = "input.magmap_view_select != 'comparative'",
+          tags$div(class = "sidebar-box",
+            help_label("Mode",
+              "Metabolism diagram: completeness overlay on the cell diagram. Metabolic maps: render any KEGG pathway with this MAG's genes coloured."),
+            radioButtons("magmap_single_mode", NULL,
+              choices = c("Metabolism diagram" = "diagram", "Metabolic maps" = "keggmap"),
+              selected = "diagram")
+          )
+        ),
+        conditionalPanel(
+          condition = "input.magmap_view_select != 'comparative' && input.magmap_single_mode == 'keggmap'",
+          tags$div(class = "sidebar-box",
+            help_label("MAG", "Select a MAG. Genes present in this MAG will be coloured on the chosen KEGG pathway map."),
+            uiOutput("magmap_bin_select_ui2")
+          ),
+          uiOutput("magmap_selected_ui2"),
+          tags$hr(class = "section-divider"),
+          tags$div(class = "sidebar-box",
+            help_label("KEGG pathway", "Browse or search for a KEGG pathway to render."),
+            uiOutput("magmap_kegg_select_ui")
+          )
+        ),
+        conditionalPanel(
+          condition = "input.magmap_view_select != 'comparative' && input.magmap_single_mode != 'keggmap'",
           tags$div(class = "sidebar-box",
             help_label("MAG", "Select a MAG to visualise its metabolic completeness on the diagram. Requires a full SQM project with KEGG annotation and binning."),
             uiOutput("magmap_bin_select_ui")
@@ -464,7 +487,7 @@ nav_panel("Load",
       ),
       tags$div(
         conditionalPanel(
-          condition = "input.magmap_view_select != 'comparative'",
+          condition = "input.magmap_view_select != 'comparative' && input.magmap_single_mode != 'keggmap'",
           card(
             card_header(
               help_label("Metabolic Map",
@@ -479,6 +502,18 @@ nav_panel("Load",
         conditionalPanel(
           condition = "input.magmap_view_select == 'comparative'",
           uiOutput("magmap_comparative_ui")
+        ),
+        conditionalPanel(
+          condition = "input.magmap_view_select != 'comparative' && input.magmap_single_mode == 'keggmap'",
+          card(
+            card_header(
+              help_label("KEGG Pathway Map",
+                "The selected KEGG pathway is rendered with genes present in the chosen MAG coloured red.")
+            ),
+            card_body(class = "p-2",
+              uiOutput("magmap_keggmap_view_ui")
+            )
+          )
         )
       )
     )
