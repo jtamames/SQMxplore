@@ -475,13 +475,31 @@ nav_panel("Load",
         conditionalPanel(
           condition = "input.magmap_view_select == 'comparative'",
           tags$div(class = "sidebar-box",
-            help_label("Category",
-              "Choose which metabolic category to compare across all MAGs."),
-            uiOutput("magmap_comp_category_ui")
+            help_label("Compare by",
+              "Category: curated central KO set for a metabolic category. KEGG pathway: all KOs of any KEGG pathway."),
+            radioButtons("magmap_comp_mode", NULL,
+              choices = c("Category" = "category", "KEGG pathway" = "pathway"),
+              selected = "category")
+          ),
+          conditionalPanel(
+            condition = "input.magmap_comp_mode != 'pathway'",
+            tags$div(class = "sidebar-box",
+              help_label("Category",
+                "Choose which metabolic category to compare across all MAGs."),
+              uiOutput("magmap_comp_category_ui")
+            )
+          ),
+          conditionalPanel(
+            condition = "input.magmap_comp_mode == 'pathway'",
+            tags$div(class = "sidebar-box",
+              help_label("KEGG pathway",
+                "Browse or search for a KEGG pathway to compare across all MAGs."),
+              uiOutput("magmap_comp_kegg_ui")
+            )
           ),
           tags$div(class = "sidebar-box",
             tags$div(style = "font-size:0.8rem; color:var(--muted);",
-              "Presence/absence of the central (curated) KO set for the selected category, across all MAGs in the project.")
+              "Presence/absence of the selected gene set across all MAGs in the project.")
           )
         )
       ),

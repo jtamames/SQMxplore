@@ -1275,7 +1275,86 @@
                 selected = first_cat)
   })
 
-  # ── Comparative table: presence/absence of central KOs across all MAGs ──────
+  # ── KEGG pathway tree for the comparative view ──────────────────────────────
+  output$magmap_comp_kegg_ui <- renderUI({
+    if (is.null(sqm_data()))
+      return(tags$div(style = "font-size:0.78rem; color:var(--muted); padding:4px 0;",
+        "Load a project to browse pathways."))
+    search_box <- tags$input(
+      id = "magmap_comp_search", type = "text",
+      placeholder = "Search pathway\u2026",
+      oninput = "filterMagmapCompTree(this.value)",
+      style = paste0(
+        "width:100%; box-sizing:border-box; padding:3px 6px;",
+        "font-size:0.78rem; border:1px solid var(--border);",
+        "border-radius:4px; margin-bottom:6px;",
+        "background:var(--surface); color:var(--text);"))
+    KEGG_HIERARCHY_EXCL_L2 <- "1.0 Global and overview maps"
+    tree_items <- lapply(names(KEGG_HIERARCHY), function(l1) {
+      l2_items <- lapply(names(KEGG_HIERARCHY[[l1]]), function(l2) {
+        if (l2 %in% KEGG_HIERARCHY_EXCL_L2) return(NULL)
+        pathways <- KEGG_HIERARCHY[[l1]][[l2]]
+        pw_links <- lapply(pathways, function(pw) {
+          tags$div(
+            class = "mcpw-item",
+            "data-name" = tolower(paste(pw$name, pw$id)),
+            style = "padding:2px 4px 2px 8px; cursor:pointer; font-size:0.75rem; border-radius:3px;",
+            onclick = sprintf(
+              "event.stopPropagation(); Shiny.setInputValue('magmap_comp_pw',{pid:'%s',name:'%s',ts:Date.now()},{priority:'event'}); document.querySelectorAll('.mcpw-item').forEach(function(el){el.style.background=''}); this.style.background='var(--accent-light)';",
+              pw$id, gsub("'", "\\\\'", pw$name)),
+            tags$span(style="color:var(--muted); margin-right:4px; font-family:monospace;", pw$id),
+            pw$name
+          )
+        })
+        tags$details(style = "margin-left:8px;",
+          tags$summary(
+            style = "font-size:0.75rem; font-weight:600; color:var(--muted); cursor:pointer; padding:2px 2px; list-style:none; display:flex; align-items:center; gap:4px;",
+            tags$span(class="mcpw-chevron", style="font-size:0.6rem;", "\u25b6"), l2),
+          pw_links)
+      })
+      l2_items <- Filter(Negate(is.null), l2_items)
+      tags$details(open = NA, style = "margin-bottom:2px;",
+        tags$summary(
+          style = "font-size:0.8rem; font-weight:700; color:var(--text); cursor:pointer; padding:3px 2px; list-style:none; display:flex; align-items:center; gap:4px; border-bottom:1px solid var(--border);",
+          tags$span(class="mcpw-chevron", style="font-size:0.65rem;", "\u25b6"), l1),
+        l2_items)
+    })
+    tags$div(
+      tags$style(HTML(
+        "details[open] > summary .mcpw-chevron { transform: rotate(90deg); }
+         .mcpw-item:hover { background: var(--accent-light) !important; }")),
+      tags$script(HTML(
+        "function filterMagmapCompTree(q) {
+          q = q.toLowerCase().trim();
+          document.querySelectorAll('.mcpw-item').forEach(function(el) {
+            var m = !q || el.getAttribute('data-name').includes(q);
+            el.style.display = m ? '' : 'none';
+          });
+          document.querySelectorAll('#magmap_comp_tree details').forEach(function(d) {
+            var vis = Array.from(d.querySelectorAll('.mcpw-item')).some(function(el) {
+              return el.style.display !== 'none'; });
+            d.style.display = vis ? '' : 'none';
+            if (q && vis) d.open = true;
+          });
+        }")),
+      search_box,
+      tags$div(id = "magmap_comp_tree",
+        style = "max-height:320px; overflow-y:auto; border:1px solid var(--border); border-radius:4px; padding:4px;",
+        tree_items)
+    )
+  })
+
+  # Helper: KOs of a KEGG pathway, from KEGG_CATEGORIES (matched by L3 name)
+  magmap_pathway_kos <- function(pw_name) {
+    if (!exists("KEGG_CATEGORIES") || is.null(KEGG_CATEGORIES)) return(character(0))
+    unique(KEGG_CATEGORIES$id[
+      !is.na(KEGG_CATEGORIES$l3) &
+      KEGG_CATEGORIES$l3 == pw_name &
+      grepl("^K[0-9]{5}$", KEGG_CATEGORIES$id)
+    ])
+  }
+
+  # ── Comparative table: presence/absence across all MAGs ─────────────────────
   # Rows = genes (KOs), Columns = MAGs
   output$magmap_comparative_ui <- renderUI({
     req(input$magmap_view_select == "comparative")
@@ -1288,13 +1367,28 @@
       return(tags$div(style = "padding:2rem; color:var(--muted); font-size:0.85rem;",
         "No MAGs found in this project."))
 
-    cat_name <- input$magmap_comp_category
-    req(cat_name, cat_name %in% names(MAG_MAP_CATEGORIES))
-    cat_kos <- sort(unique(MAG_MAP_CATEGORIES[[cat_name]]$kos_central))
-    if (length(cat_kos) == 0)
-      return(tags$div(style = "padding:2rem; color:var(--muted); font-size:0.85rem;",
-        "No central KO list for this category."))
-    cat_label <- gsub("\n", " ", cat_name)
+    comp_mode <- input$magmap_comp_mode %||% "category"
+
+    # Resolve the KO set + label depending on the mode
+    if (comp_mode == "pathway") {
+      pw <- input$magmap_comp_pw
+      if (is.null(pw) || is.null(pw$pid))
+        return(tags$div(style = "padding:2rem; color:var(--muted); font-size:0.85rem;",
+          "Pick a KEGG pathway from the tree on the left."))
+      cat_kos   <- sort(magmap_pathway_kos(pw$name))
+      cat_label <- paste0(pw$name, " [", pw$pid, "]")
+      if (length(cat_kos) == 0)
+        return(tags$div(style = "padding:2rem; color:var(--muted); font-size:0.85rem;",
+          paste0("No KOs found for pathway ", pw$pid, ".")))
+    } else {
+      cat_name <- input$magmap_comp_category
+      req(cat_name, cat_name %in% names(MAG_MAP_CATEGORIES))
+      cat_kos   <- sort(unique(MAG_MAP_CATEGORIES[[cat_name]]$kos_central))
+      cat_label <- gsub("\n", " ", cat_name)
+      if (length(cat_kos) == 0)
+        return(tags$div(style = "padding:2rem; color:var(--muted); font-size:0.85rem;",
+          "No central KO list for this category."))
+    }
 
     # KO sets per MAG (computed once)
     bin_kos <- lapply(bins, function(b)
@@ -1350,7 +1444,8 @@
       tags$div(style = "font-weight:600; font-size:1rem; margin-bottom:4px; color:#1a3a6b;",
         cat_label,
         tags$span(style = "font-weight:400; color:var(--muted); font-size:0.82rem; margin-left:8px;",
-          sprintf("%d genes \u00d7 %d MAGs (central KO set)", length(cat_kos), length(bins)))),
+          sprintf("%d genes \u00d7 %d MAGs (%s)", length(cat_kos), length(bins),
+                  if (comp_mode == "pathway") "all pathway KOs" else "central KO set"))),
       tags$div(style = "font-size:0.8rem; color:var(--muted); margin-bottom:12px;",
         tags$span(style = "display:inline-block; width:12px; height:12px; background:#c0392b; border-radius:2px; margin-right:4px; vertical-align:middle;"),
         "Gene present  ",
