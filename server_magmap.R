@@ -70,7 +70,7 @@
   # Completeness = (KOs present in MAG) / (total KOs in list) * 100.
   CORE_KOS <- list(
     "Glycolysis" = c("K00016", "K00131", "K00134", "K00149", "K00150", "K00844", "K00845", "K00850", "K00873", "K00918", "K00927", "K01596", "K01610", "K01623", "K01624", "K01689", "K01803", "K01810", "K01834", "K06859", "K11645", "K12406", "K12407", "K13810", "K15633", "K15634", "K15635", "K15916", "K16305", "K16306", "K16370", "K21071", "K25026"),
-    "Pentose Phosphate Pathway" = c("K00033", "K00036", "K00615", "K00616", "K00622", "K01057", "K01783", "K01807", "K01808", "K07404"),
+    "Pentose Phosphate Pathway" = c("K00033", "K00036", "K00615", "K00616", "K01057", "K01783", "K01807", "K01808", "K07404"),
     "Entner-Doudoroff Pathway" = c("K00033", "K00036", "K01057", "K01625", "K01690"),
     "TCA Cycle" = c("K00024", "K00025", "K00026", "K00030", "K00031", "K00161", "K00162", "K00163", "K00164", "K00239", "K00240", "K00241", "K00242", "K00382", "K00627", "K00658", "K01595", "K01637", "K01638", "K01647", "K01648", "K01676", "K01677", "K01678", "K01681", "K01682", "K01902", "K01903", "K01958", "K01959", "K01960"),
     "CO2 Fixation" = c("K00169", "K00170", "K00171", "K00172", "K00174", "K00175", "K00176", "K00177", "K00194", "K00197", "K00297", "K00855", "K00925", "K01491", "K01601", "K01602", "K01647", "K01938", "K14138", "K14139", "K14140", "K14141", "K15022", "K15038", "K15039", "K18556"),
@@ -712,16 +712,31 @@
         "))
 
         # Build node JSON — same structure as server_pathways.R
+        # Resolve KO function names from KEGG_NAMES (master DB, has all KOs)
+        # with fallback to the project's own KEGG_names.
         node_json <- if (!is.null(nodes) && nrow(nodes) > 0) {
+          name_for_ko <- function(ko) {
+            if (exists("KEGG_NAMES") && !is.null(KEGG_NAMES) && ko %in% names(KEGG_NAMES)) {
+              nm <- as.character(KEGG_NAMES[[ko]])
+              if (length(nm) && !is.na(nm) && nzchar(nm)) return(nm)
+            }
+            if (!is.null(kegg_names) && ko %in% names(kegg_names)) {
+              nm <- as.character(kegg_names[[ko]])
+              if (length(nm) && !is.na(nm) && nzchar(nm)) return(nm)
+            }
+            NA_character_
+          }
           node_list <- lapply(seq_len(nrow(nodes)), function(i) {
             r      <- nodes[i, ]
             ko_ids <- unique(sub("^ko:", "", trimws(unlist(strsplit(r$ko_names, "[[:space:]]+")))))
             ko_ids <- ko_ids[grepl("^K[0-9]{5}$", ko_ids)]
-            nms    <- if (!is.null(kegg_names)) unique(na.omit(kegg_names[ko_ids])) else character(0)
+            nms    <- unique(na.omit(vapply(ko_ids, name_for_ko, character(1))))
             ko_str   <- paste(ko_ids, collapse = ", ")
-            name_str <- if (length(nms) > 0) paste(nms, collapse = " / ") else r$label
+            name_str <- if (length(nms) > 0) paste(nms, collapse = " / ")
+                        else "(no annotation available)"
             present  <- as.integer(any(ko_ids %in% mag_kos))
-            tip <- paste0(ko_str, "\n", name_str, "\n\u2014 ", if (present == 1L) "PRESENT" else "absent")
+            tip <- paste0(ko_str, "\n", name_str, "\n\u2014 ",
+                          if (present == 1L) "PRESENT" else "absent")
             list(x = r$x, y = r$y, w = r$w, h = r$h, tip = tip, present = present)
           })
           jsonlite::toJSON(node_list, auto_unbox = TRUE)
@@ -762,7 +777,6 @@
                 box.style.border     = n.present === 1 ? "1px solid rgba(192,57,43,0.7)" : "1px solid rgba(160,160,160,0.6)";
                 box.style.boxSizing  = "border-box";
                 box.style.cursor     = "crosshair";
-                box.title            = n.tip;
                 (function(tip) {
                   box.addEventListener("mouseenter", function() {
                     var el = document.getElementById("pw-tooltip");
@@ -1106,13 +1120,15 @@
       l3[!is.na(l3) & nzchar(l3)]
     }
 
-    # Build per-KO rows — l3 filtered to only the paths of this category
-    cat_paths <- MAG_MAP_CATEGORIES[[cat_key[1]]]$paths
+    # Build per-KO rows — l3 strictly filtered to the paths of this category.
+    # KOs with no matching pathway are grouped under the category name itself,
+    # NEVER under unrelated KEGG pathways.
+    cat_paths   <- MAG_MAP_CATEGORIES[[cat_key[1]]]$paths
+    cat_label   <- gsub("\n", " ", cat_key[1])
     rows <- lapply(cat_kos, function(ko) {
       all_l3 <- ko_l3_fn(ko)
-      # Only show pathways that belong to this category
+      # Keep ONLY pathways that belong to this category
       l3 <- all_l3[all_l3 %in% cat_paths]
-      if (length(l3) == 0) l3 <- all_l3  # fallback: show all if none match (shouldn't happen)
       list(
         ko      = ko,
         name    = ko_name_fn(ko),
@@ -1183,7 +1199,8 @@
     }
     if (has_unassigned) {
       grp <- rows[no_path]
-      tbl_html <- paste0(tbl_html, make_l3_header("(no pathway assigned)"),
+      tbl_html <- paste0(tbl_html,
+                         make_l3_header(paste0(cat_label, " (other KOs)")),
                          paste(vapply(grp, make_ko_row, character(1)), collapse = ""))
     }
 
