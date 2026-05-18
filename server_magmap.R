@@ -1395,7 +1395,23 @@
       tryCatch(get_bin_kos(proj, b), error = function(e) character(0)))
     names(bin_kos) <- bins
 
+    # MAG completeness lookup from bins$table
+    bt_comp <- tryCatch(proj$bins$table, error = function(e) NULL)
+    mag_completeness <- function(b) {
+      if (is.null(bt_comp) || !(b %in% rownames(bt_comp))) return(NA_real_)
+      cn  <- colnames(bt_comp)
+      idx <- grep("^Completeness$", cn, ignore.case = TRUE)[1]
+      if (is.na(idx)) return(NA_real_)
+      suppressWarnings(as.numeric(bt_comp[b, idx]))
+    }
+
     short_bin <- function(b) sub("\\.fa.*$", "", b)
+    # MAG label with completeness, e.g. "concoct.72 (99.1%)"
+    mag_label <- function(b) {
+      lbl <- short_bin(b)
+      cp  <- mag_completeness(b)
+      if (!is.na(cp)) paste0(lbl, " (", sprintf("%.1f%%", cp), ")") else lbl
+    }
 
     # KO function-name lookup
     ko_label <- function(ko) {
@@ -1412,7 +1428,7 @@
       '" style="padding:0; width:22px; min-width:22px; max-width:22px; font-size:0.66rem; ',
       'writing-mode:vertical-rl; text-orientation:mixed; white-space:nowrap; ',
       'border-bottom:1px solid var(--border); height:120px; vertical-align:bottom; text-align:center;">',
-      vapply(bins, function(b) htmltools::htmlEscape(short_bin(b)), character(1)),
+      vapply(bins, function(b) htmltools::htmlEscape(mag_label(b)), character(1)),
       '</th>', collapse = "")
 
     # One row per gene (KO)
@@ -1425,7 +1441,7 @@
           is_pres <- ko %in% bin_kos[[b]]
           status  <- if (is_pres) "present" else "absent"
           tip <- htmltools::htmlEscape(
-            paste0(ko, " — ", fn_full, "\n", short_bin(b), "\n", status),
+            paste0(ko, " — ", fn_full, "\n", mag_label(b), "\n", status),
             attribute = TRUE)
           bg  <- if (is_pres) "#c0392b" else "#f0f0f0"
           sprintf('<td title="%s" style="background:%s; border:1px solid #fff; width:22px; min-width:22px; max-width:22px; height:18px; padding:0;"></td>',
