@@ -12,6 +12,7 @@ Interactive Shiny dashboard for running, visualising and exploring [SqueezeMeta]
 - **Pathways** — overlays functional abundance data onto KEGG pathway maps
 - **Multivariate** — ordination analysis (PCA and NMDS)
 - **Comparison** — differential abundance analysis between sample groups using Wilcoxon, DESeq2 or edgeR, with volcano plots and results tables
+- **MAGs** — explore the metabolic potential of individual MAGs (bins): a cell-diagram view with KEGG completeness overlays per metabolic category, a KEGG pathway browser that colours the genes present in a MAG on any KEGG map, and a comparative presence/absence table of category genes across all MAGs
 - **About** — citation information and links
 
 ---
@@ -40,21 +41,27 @@ The installer handles all R packages (CRAN and Bioconductor) and any required sy
 
 ```bash
 conda activate SqueezeMeta
-Rscript -e 'shiny::runApp("app.R", launch.browser=FALSE)'
+./watermelon.sh
 ```
 
-When the app starts, you will see a message like:
+`watermelon.sh` starts the app and, once the server is ready, opens your default
+browser automatically. If the browser cannot be opened (for example on a headless
+server), the URL is printed so you can open it manually:
 
 ```
-Listening on http://127.0.0.1:6186
+============================================================
+ Watermelon
+------------------------------------------------------------
+ Please open your browser and enter the following URL:
+   http://127.0.0.1:3838
+============================================================
 ```
 
-Open that URL in your browser. The port number may vary each time.
-
-To use a fixed port or make the app accessible from another machine:
+To use a different port, or to skip opening the browser:
 
 ```bash
-Rscript -e 'shiny::runApp("app.R", host="0.0.0.0", port=3838, launch.browser=FALSE)'
+./watermelon.sh 8080            # custom port
+./watermelon.sh 3838 nobrowser  # do not auto-open the browser
 ```
 
 > **Important:** the SqueezeMeta conda environment must be active before launching the app, both for the visualisation features and for the Run tab to find `SqueezeMeta.pl` in the PATH.
@@ -83,7 +90,7 @@ ktUpdateTaxonomy.sh
 - **Input directory (-f)** — auto-populated when using the samples file creator.
 - **Working directory** — where the project folder will be created.
 
-**Profile** — *Standard Metagenome* (Illumina) or *Nanopore Metagenome* (ONT).
+**Profile** — a preset that fills in the advanced parameters: *Standard Metagenome*, *Large Metagenome (merged assembly)*, *Sequential (per-sample)*, *Metatranscriptome*, *Fast (no binning)* or *Custom*. Selecting a profile updates threads, mode, assembler, mapper and binning options; these can still be edited afterwards.
 
 **Advanced** — Filtering, Assembly, Annotation, Mapping, Binning, Performance.
 
@@ -125,12 +132,38 @@ DESeq2 and edgeR are blocked when any group has only 1 sample. A warning is show
 
 ---
 
+### MAGs tab — metabolic exploration of bins
+
+Requires a full SQM project with KEGG annotation and binning.
+
+**Single MAG** — explore one MAG at a time, in two modes:
+
+- **Metabolism diagram** — a cell diagram showing major metabolic categories
+  (central carbon metabolism, N/S/CH4 metabolism, biosynthesis, respiration,
+  transporters). Each category is shaded according to how complete its gene set
+  is in the selected MAG. Hover for details; click a category to see a KO detail
+  table grouped by KEGG pathway. Pathway headers in the table are clickable and
+  render the corresponding KEGG map with the MAG's genes coloured.
+- **Metabolic maps** — browse or search the full KEGG pathway hierarchy and
+  render any pathway, with the genes present in the selected MAG coloured red.
+
+The **KO list** toggle switches between *Extended* (every KO in the KEGG pathways
+assigned to a category) and *Central* (a curated set of diagnostic / canonical
+KOs for each pathway).
+
+**Comparative table** — presence/absence of a gene set across all MAGs in the
+project, as a coloured matrix (genes in rows, MAGs in columns). The gene set can
+be chosen either **by category** (curated central KO set) or **by KEGG pathway**
+(all KOs of any KEGG pathway). MAG columns are labelled with their completeness.
+
+---
+
 ## Project types
 
 | Type | Load function | Features |
 |------|--------------|----------|
-| SQM (full) | `loadSQM` | All tabs, all plots, taxonomy/function search, bins |
-| SQMlite | `loadSQMlite` | Plots, Tables, Krona, Pathways, Multivariate, Comparison; no contig/ORF/bin detail |
+| SQM (full) | `loadSQM` | All tabs, all plots, taxonomy/function search, bins, MAGs |
+| SQMlite | `loadSQMlite` | Plots, Tables, Krona, Pathways, Multivariate, Comparison; no contig/ORF/bin detail; no MAGs tab |
 
 ---
 
@@ -146,9 +179,13 @@ DESeq2 and edgeR are blocked when any group has only 1 sample. A warning is show
 | SQMtools | CRAN / SqueezeMeta repo | Core |
 | processx | CRAN | Run tab |
 | plotly | CRAN | Plots, Comparison tabs |
+| ggplot2 | CRAN | Plots tab |
 | vegan | CRAN | Multivariate tab |
-| xml2 | CRAN | Pathways tab |
-| pathview | Bioconductor | Pathways tab |
+| xml2 | CRAN | Pathways, MAGs tabs |
+| jsonlite | CRAN | Pathways, MAGs tabs |
+| base64enc | CRAN | MAGs tab (cell diagram) |
+| png | CRAN | MAGs tab (KEGG maps) |
+| pathview | Bioconductor | Pathways, MAGs tabs |
 | DESeq2 | Bioconductor | Comparison tab (optional) |
 | edgeR | Bioconductor | Comparison tab (optional) |
 | KronaTools (`ktImportText`) | conda / GitHub | Krona tab |
@@ -162,7 +199,7 @@ DESeq2 and edgeR are blocked when any group has only 1 sample. A warning is show
 ```bash
 sudo apt-get install -y cmake liblzma-dev
 sudo R -e "install.packages(c('shiny','shinyjs','shinyFiles','bslib','DT','plotly',
-  'SQMtools','vegan','xml2','processx'), repos='https://cran.rstudio.com/')"
+  'ggplot2','SQMtools','vegan','xml2','jsonlite','processx','base64enc','png'), repos='https://cran.rstudio.com/')"
 sudo R -e 'install.packages("BiocManager", repos="https://cran.rstudio.com/")'
 sudo R -e 'BiocManager::install(c("pathview","Biostrings","DESeq2","edgeR"))'
 ```
@@ -231,7 +268,7 @@ ssh -L 3838:localhost:3838 user@server-ip
 **`SqueezeMeta.pl` not found (Run tab)**
 ```bash
 conda activate SqueezeMeta
-Rscript -e 'shiny::runApp("app.R", launch.browser=FALSE)'
+./watermelon.sh
 ```
 
 **`processx` error**

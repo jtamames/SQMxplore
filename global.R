@@ -1,13 +1,15 @@
 cat("Starting app, please wait...\n")
 flush.console()
 
-library(shiny)
-library(shinyjs)
-library(shinyFiles)
-library(bslib)
-library(SQMtools)
-library(DT)
-library(plotly)
+suppressPackageStartupMessages({
+  library(shiny)
+  library(shinyjs)
+  library(shinyFiles)
+  library(bslib)
+  library(SQMtools)
+  library(DT)
+  library(plotly)
+})
 
 # ── App directory (for locating static assets like BacMet.png) ──
 app_dir <- if (nzchar(Sys.getenv("SHINY_APP_DIR"))) {
@@ -1855,3 +1857,99 @@ KEGG_HIERARCHY <- list(
     )
   )
 )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SqueezeMeta launcher — built-in run profiles
+# ─────────────────────────────────────────────────────────────────────────────
+# Each profile is a list with $name and $parameters. The launcher observer in
+# server_launcher.R reads: threads, mode, assembler, mapper, assembly_options,
+# skip_binning, consensus.
+.WATERMELON_PROFILES <- list(
+  list(
+    name = "Standard Metagenome",
+    parameters = list(
+      threads          = 12,
+      mode             = "coassembly",
+      assembler        = "megahit",
+      mapper           = "bowtie",
+      assembly_options = "",
+      skip_binning     = FALSE,
+      consensus        = 50
+    )
+  ),
+  list(
+    name = "Large Metagenome (merged assembly)",
+    parameters = list(
+      threads          = 24,
+      mode             = "merged",
+      assembler        = "megahit",
+      mapper           = "bowtie",
+      assembly_options = "",
+      skip_binning     = FALSE,
+      consensus        = 50
+    )
+  ),
+  list(
+    name = "Sequential (per-sample)",
+    parameters = list(
+      threads          = 12,
+      mode             = "sequential",
+      assembler        = "megahit",
+      mapper           = "bowtie",
+      assembly_options = "",
+      skip_binning     = FALSE,
+      consensus        = 50
+    )
+  ),
+  list(
+    name = "Metatranscriptome",
+    parameters = list(
+      threads          = 12,
+      mode             = "sequential",
+      assembler        = "rnaspades",
+      mapper           = "bowtie",
+      assembly_options = "",
+      skip_binning     = TRUE,
+      consensus        = 50
+    )
+  ),
+  list(
+    name = "Fast (no binning)",
+    parameters = list(
+      threads          = 12,
+      mode             = "coassembly",
+      assembler        = "megahit",
+      mapper           = "bowtie",
+      assembly_options = "",
+      skip_binning     = TRUE,
+      consensus        = 50
+    )
+  ),
+  list(
+    name = "Custom",
+    parameters = list(
+      threads          = 12,
+      mode             = "coassembly",
+      assembler        = "megahit",
+      mapper           = "bowtie",
+      assembly_options = "",
+      skip_binning     = FALSE,
+      consensus        = 50
+    )
+  )
+)
+
+# Return the list of built-in profiles (used to populate the launcher dropdown)
+get_builtin_profiles <- function() {
+  .WATERMELON_PROFILES
+}
+
+# Look up a single profile by its display name; returns NULL if not found
+get_profile_by_name <- function(profile_name) {
+  if (is.null(profile_name) || !nzchar(profile_name)) return(NULL)
+  for (p in .WATERMELON_PROFILES) {
+    if (identical(p$name, profile_name)) return(p)
+  }
+  NULL
+}

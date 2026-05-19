@@ -83,7 +83,7 @@
 
   observeEvent(input$lnch_program, {
     if (input$lnch_program != "SqueezeMeta.pl")
-      updateSelectInput(session, "lnch_profile", selected = "custom")
+      updateSelectInput(session, "lnch_profile", selected = "Custom")
   })
 
   observeEvent(input$lnch_profile, {
