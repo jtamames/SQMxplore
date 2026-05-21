@@ -1968,3 +1968,128 @@ get_profile_by_name <- function(profile_name) {
   }
   NULL
 }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# run_squeezemeta: launches a SqueezeMeta-family pipeline as a background
+# processx process. Returns list(process = <processx::process>) so the launcher
+# tab can monitor stdout/stderr, log progress and detect when it finishes.
+# ─────────────────────────────────────────────────────────────────────────────
+run_squeezemeta <- function(program,
+                            samples_file,
+                            input_dir,
+                            project_name,
+                            workdir,
+                            mode                = "coassembly",
+                            threads             = 12,
+                            run_trimmomatic     = FALSE,
+                            cleaning_parameters = "",
+                            assembler           = "megahit",
+                            assembly_options    = "",
+                            min_contig_length   = 200,
+                            use_singletons      = FALSE,
+                            no_cog              = FALSE,
+                            no_kegg             = FALSE,
+                            no_pfam             = FALSE,
+                            eukaryotes          = FALSE,
+                            doublepass          = FALSE,
+                            extdb               = "",
+                            consensus           = 50,
+                            mapper              = "bowtie",
+                            mapping_options     = "",
+                            no_bins             = FALSE,
+                            only_bins           = FALSE,
+                            binners             = NULL) {
+
+  if (!requireNamespace("processx", quietly = TRUE))
+    stop("Package 'processx' is required. Install it with install.packages('processx').")
+
+  # ── Validate inputs ────────────────────────────────────────────────────────
+  if (is.null(program) || !nzchar(program))
+    stop("Program is required.")
+  if (is.null(project_name) || !nzchar(project_name))
+    stop("Project name is required.")
+  if (is.null(samples_file) || !nzchar(samples_file) || !file.exists(samples_file))
+    stop("Samples file not found: ", samples_file)
+  if (is.null(input_dir) || !nzchar(input_dir) || !dir.exists(input_dir))
+    stop("Input directory not found: ", input_dir)
+  if (is.null(workdir) || !nzchar(workdir) || !dir.exists(workdir))
+    stop("Working directory not found: ", workdir)
+
+  # ── Make sure the binary is in PATH ────────────────────────────────────────
+  bin_path <- Sys.which(program)
+  if (!nzchar(bin_path))
+    stop("'", program, "' was not found in the PATH. ",
+         "Activate the SqueezeMeta conda environment before launching the app.")
+
+  # ── Build the argument list ────────────────────────────────────────────────
+  # All three programs share the core flags: -p, -s, -f, -t
+  args <- c(
+    "-p", project_name,
+    "-s", samples_file,
+    "-f", input_dir,
+    "-t", as.character(threads)
+  )
+
+  is_squeezemeta <- identical(program, "SqueezeMeta.pl")
+
+  if (is_squeezemeta) {
+    if (nzchar(mode))
+      args <- c(args, "-m", mode)
+    if (nzchar(assembler))
+      args <- c(args, "-a", assembler)
+    if (!is.null(min_contig_length) && !is.na(min_contig_length) &&
+        as.numeric(min_contig_length) > 0)
+      args <- c(args, "-c", as.character(min_contig_length))
+    if (nzchar(assembly_options))
+      args <- c(args, "-assembly_options", assembly_options)
+    if (nzchar(mapper))
+      args <- c(args, "-map", mapper)
+    if (nzchar(mapping_options))
+      args <- c(args, "-mapping_options", mapping_options)
+    if (!is.null(consensus) && !is.na(consensus))
+      args <- c(args, "-b", as.character(consensus))
+    if (isTRUE(no_bins))    args <- c(args, "--nobins")
+    if (isTRUE(only_bins))  args <- c(args, "--onlybins")
+    if (!is.null(binners) && length(binners) > 0 && any(nzchar(binners)))
+      args <- c(args, "-binners", paste(binners, collapse = ","))
+    if (isTRUE(use_singletons)) args <- c(args, "--singletons")
+    if (isTRUE(doublepass))     args <- c(args, "--doublepass")
+  }
+
+  # Cleaning / trimmomatic (applies to SqueezeMeta.pl mainly)
+  if (isTRUE(run_trimmomatic) && is_squeezemeta) {
+    args <- c(args, "--cleaning")
+    if (nzchar(cleaning_parameters))
+      args <- c(args, "--cleaning_options", cleaning_parameters)
+  }
+
+  # Annotation toggles (supported by all three)
+  if (isTRUE(no_cog))    args <- c(args, "--nocog")
+  if (isTRUE(no_kegg))   args <- c(args, "--nokegg")
+  if (isTRUE(no_pfam))   args <- c(args, "--nopfam")
+  if (isTRUE(eukaryotes)) args <- c(args, "--euk")
+
+  # External annotation database
+  if (!is.null(extdb) && nzchar(extdb))
+    args <- c(args, "-extdb", extdb)
+
+  # ── Log the command being launched so it appears in the log panel ─────────
+  cmd_str <- paste(c(program, args), collapse = " ")
+  message("[Watermelon] Launching: ", cmd_str)
+
+  # ── Spawn the process ──────────────────────────────────────────────────────
+  proc <- processx::process$new(
+    command = program,
+    args    = args,
+    wd      = workdir,
+    stdout  = "|",
+    stderr  = "|",
+    cleanup = TRUE
+  )
+
+  list(
+    process = proc,
+    command = cmd_str
+  )
+}
