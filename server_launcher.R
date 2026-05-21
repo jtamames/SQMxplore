@@ -520,6 +520,34 @@
     if (input$lnch_only_bins) updateCheckboxInput(session, "lnch_no_bins", value = FALSE)
   })
 
+  output$lnch_card_title <- renderUI({
+    buf <- lnch_log_buffer()
+    if (is.null(buf) || !nzchar(trimws(buf))) {
+      tags$span("Metagenomics pipeline")
+    } else {
+      tags$span("Execution log")
+    }
+  })
+
   output$lnch_log <- renderUI({
-    tags$pre(style = "margin:0; white-space:pre-wrap;", lnch_log_buffer())
+    buf <- lnch_log_buffer()
+    if (is.null(buf) || !nzchar(trimws(buf))) {
+      # Idle: show the metagenomics workflow schema as a friendly placeholder.
+      return(tags$div(class = "launcher-log-placeholder",
+        style = "padding: 12px 4px; text-align:center; width:100%; box-sizing:border-box;",
+        tags$div(
+          style = "color: var(--muted); font-size: 0.82rem; margin-bottom: 12px; line-height: 1.55; text-align:center;",
+          "SqueezeMeta starts in step 1 (works on reads). ",
+          "SQM_longreads starts in step 2 (treats (long)reads as contigs). ",
+          "SQM_reads starts in step 3. ",
+          "Only SqueezeMeta performs step 5."
+        ),
+        tags$img(
+          src   = "schema.png",
+          alt   = "Metagenomic analysis workflow",
+          style = "display:block; max-width:100%; width:100%; height:auto; border-radius:4px; margin:0 auto;"
+        )
+      ))
+    }
+    tags$pre(class = "launcher-log-text", style = "margin:0; white-space:pre-wrap;", buf)
   })

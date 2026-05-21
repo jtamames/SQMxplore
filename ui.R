@@ -132,7 +132,7 @@ ui <- page_navbar(
       card(
         card_header(
           tags$div(style = "display:flex; justify-content:space-between; align-items:center;",
-            "Execution log",
+            uiOutput("lnch_card_title", inline = TRUE),
             uiOutput("lnch_status_badge"))
         ),
         card_body(
@@ -173,7 +173,15 @@ nav_panel("Load",
         uiOutput("project_info_ui"), uiOutput("manual_tables_ui"),
         uiOutput("multi_dirs_ui"),
         actionButton("load_project", "Load", class = "btn-primary w-100 mb-2"),
-        uiOutput("project_status_ui")
+        uiOutput("project_status_ui"),
+        tags$hr(class = "section-divider"),
+        tags$div(class = "sidebar-box",
+          help_label("Demo data",
+            "Downloads a small example SqueezeMeta project the first time it is used, so you can explore every tab without having data of your own. The download is cached locally and reused afterwards."),
+          actionButton("load_demo", "Load demo project",
+                       class = "btn-default w-100", icon = icon("flask")),
+          uiOutput("demo_status_ui")
+        )
       ),
       tags$div(style = "padding: 1rem;", uiOutput("project_summary_ui"))
     )
