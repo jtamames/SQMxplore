@@ -118,7 +118,12 @@ ui <- page_navbar(
             ),
 
             accordion_panel("Performance",
-              numericInput("lnch_threads", "Threads", 8, min = 1)
+              numericInput("lnch_threads", "Threads", 8, min = 1),
+              conditionalPanel(condition = "input.lnch_program == 'SqueezeMeta.pl'",
+                checkboxInput("lnch_lowmem",
+                  "Low memory mode (--lowmem)",
+                  FALSE)
+              )
             )
           )
         ),

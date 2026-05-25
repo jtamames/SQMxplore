@@ -1999,7 +1999,8 @@ run_squeezemeta <- function(program,
                             mapping_options     = "",
                             no_bins             = FALSE,
                             only_bins           = FALSE,
-                            binners             = NULL) {
+                            binners             = NULL,
+                            lowmem              = FALSE) {
 
   if (!requireNamespace("processx", quietly = TRUE))
     stop("Package 'processx' is required. Install it with install.packages('processx').")
@@ -2055,6 +2056,7 @@ run_squeezemeta <- function(program,
       args <- c(args, "-binners", paste(binners, collapse = ","))
     if (isTRUE(use_singletons)) args <- c(args, "--singletons")
     if (isTRUE(doublepass))     args <- c(args, "--doublepass")
+    if (isTRUE(lowmem))         args <- c(args, "--lowmem")
   }
 
   # Cleaning / trimmomatic (applies to SqueezeMeta.pl mainly)

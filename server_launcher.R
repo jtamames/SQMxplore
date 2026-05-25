@@ -141,7 +141,8 @@
         mapping_options     = input$lnch_mapping_opts,
         no_bins             = input$lnch_no_bins,
         only_bins           = input$lnch_only_bins,
-        binners             = input$lnch_binners
+        binners             = input$lnch_binners,
+        lowmem              = input$lnch_lowmem
       )
     }, error = function(e) {
       showNotification(paste("Error:", e$message), type = "error", duration = NULL)
