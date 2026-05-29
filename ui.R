@@ -120,6 +120,15 @@ ui <- page_navbar(
             accordion_panel("Performance",
               numericInput("lnch_threads", "Threads", 8, min = 1),
               conditionalPanel(condition = "input.lnch_program == 'SqueezeMeta.pl'",
+                checkboxInput("lnch_auto_block",
+                  "Self-calculate Diamond block size",
+                  TRUE),
+                conditionalPanel(
+                  condition = "input.lnch_auto_block == false",
+                  numericInput("lnch_diamond_block",
+                    "Diamond block size (-b)",
+                    value = NA, min = 1, step = 1)
+                ),
                 checkboxInput("lnch_lowmem",
                   "Low memory mode (--lowmem)",
                   FALSE)

@@ -2000,7 +2000,8 @@ run_squeezemeta <- function(program,
                             no_bins             = FALSE,
                             only_bins           = FALSE,
                             binners             = NULL,
-                            lowmem              = FALSE) {
+                            lowmem              = FALSE,
+                            diamond_block       = NA) {
 
   if (!requireNamespace("processx", quietly = TRUE))
     stop("Package 'processx' is required. Install it with install.packages('processx').")
@@ -2048,8 +2049,13 @@ run_squeezemeta <- function(program,
       args <- c(args, "-map", mapper)
     if (nzchar(mapping_options))
       args <- c(args, "-mapping_options", mapping_options)
+    # Taxonomic consensus for bins (-consensus). NOTE: -b is Diamond block size.
     if (!is.null(consensus) && !is.na(consensus))
-      args <- c(args, "-b", as.character(consensus))
+      args <- c(args, "-consensus", as.character(consensus))
+    # Diamond block size (-b). Lower values = less RAM.
+    if (!is.null(diamond_block) && !is.na(diamond_block) &&
+        as.numeric(diamond_block) > 0)
+      args <- c(args, "-b", as.character(diamond_block))
     if (isTRUE(no_bins))    args <- c(args, "--nobins")
     if (isTRUE(only_bins))  args <- c(args, "--onlybins")
     if (!is.null(binners) && length(binners) > 0 && any(nzchar(binners)))

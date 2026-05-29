@@ -142,7 +142,9 @@
         no_bins             = input$lnch_no_bins,
         only_bins           = input$lnch_only_bins,
         binners             = input$lnch_binners,
-        lowmem              = input$lnch_lowmem
+        lowmem              = input$lnch_lowmem,
+        diamond_block       = if (isTRUE(input$lnch_auto_block)) NA
+                              else input$lnch_diamond_block
       )
     }, error = function(e) {
       showNotification(paste("Error:", e$message), type = "error", duration = NULL)
