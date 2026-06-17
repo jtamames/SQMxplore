@@ -1,9 +1,9 @@
-<img width="1511" height="807" alt="Figure3orig" src="https://github.com/user-attachments/assets/7c23cabc-aaf3-4a89-bf25-229ff7a880b0" />
-<img width="1461" height="1266" alt="Figure2orig" src="https://github.com/user-attachments/assets/36d915e7-5778-4eec-8bce-306736173e41" />
-<img width="1367" height="1134" alt="Figure1orig" src="https://github.com/user-attachments/assets/622d9969-cd7a-44f1-8a07-f4503a29f628" />
 # Watermelon
 
 Interactive Shiny dashboard for running, visualising and exploring [SqueezeMeta](https://github.com/jtamames/SqueezeMeta) metagenomics results.
+
+<img width="1461" height="1266" alt="Figure2orig" src="https://github.com/user-attachments/assets/36d915e7-5778-4eec-8bce-306736173e41" />
+<img width="1367" height="1134" alt="Figure1orig" src="https://github.com/user-attachments/assets/622d9969-cd7a-44f1-8a07-f4503a29f628" />
 
 ## Features
 
