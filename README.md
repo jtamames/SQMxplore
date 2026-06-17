@@ -2,7 +2,6 @@
 
 Interactive Shiny dashboard for running, visualising and exploring [SqueezeMeta](https://github.com/jtamames/SqueezeMeta) metagenomics results.
 
-<img width="1461" height="1266" alt="Figure2orig" src="https://github.com/user-attachments/assets/36d915e7-5778-4eec-8bce-306736173e41" />
 <img width="1367" height="1134" alt="Figure1orig" src="https://github.com/user-attachments/assets/622d9969-cd7a-44f1-8a07-f4503a29f628" />
 
 ## Features
@@ -16,6 +15,8 @@ Interactive Shiny dashboard for running, visualising and exploring [SqueezeMeta]
 - **Multivariate** — ordination analysis (PCA and NMDS)
 - **Comparison** — differential abundance analysis between sample groups using Wilcoxon, DESeq2 or edgeR, with volcano plots and results tables
 - **MAGs** — explore the metabolic potential of individual MAGs (bins): a cell-diagram view with KEGG completeness overlays per metabolic category, a KEGG pathway browser that colours the genes present in a MAG on any KEGG map, and a comparative presence/absence table of category genes across all MAGs
+<img width="1461" height="1266" alt="Figure2orig" src="https://github.com/user-attachments/assets/36d915e7-5778-4eec-8bce-306736173e41" />
+
 - **About** — citation information and links
 
 ---
